@@ -3,13 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Envoyer mon dessin - Espoyr</title>
+  <title>Concours de dessin Espoyr</title>
 
   <style>
     body{
       font-family: Arial, sans-serif;
       background:#f4f4f4;
       margin:0;
+      padding:0;
       color:#222;
     }
 
@@ -17,11 +18,21 @@
       background:#2d6a4f;
       color:white;
       text-align:center;
-      padding:35px 20px;
+      padding:40px 20px;
+    }
+
+    header h1{
+      font-size:3em;
+      margin:0;
+    }
+
+    header p{
+      font-size:1.2em;
+      margin-top:10px;
     }
 
     .container{
-      max-width:700px;
+      max-width:1000px;
       margin:auto;
       padding:20px;
     }
@@ -30,50 +41,31 @@
       background:white;
       border-radius:12px;
       padding:25px;
+      margin-bottom:20px;
       box-shadow:0 2px 8px rgba(0,0,0,0.1);
     }
 
-    label{
-      display:block;
-      margin-top:15px;
-      font-weight:bold;
+    h2{
+      color:#2d6a4f;
     }
 
-    input{
-      width:100%;
-      padding:12px;
-      margin-top:6px;
-      border:1px solid #ccc;
-      border-radius:8px;
-      font-size:16px;
-      box-sizing:border-box;
-    }
-
-    button{
-      margin-top:25px;
+    .btn{
+      display:inline-block;
       background:#ff9800;
       color:white;
-      border:none;
-      padding:14px 22px;
+      padding:12px 20px;
       border-radius:8px;
-      font-size:16px;
-      font-weight:bold;
-      cursor:pointer;
-    }
-
-    .retour{
-      display:inline-block;
-      margin-top:20px;
-      color:#2d6a4f;
       text-decoration:none;
       font-weight:bold;
+      margin-top:10px;
     }
 
-    .info{
-      background:#e9f5ee;
-      padding:15px;
-      border-radius:8px;
-      margin-bottom:20px;
+    footer{
+      text-align:center;
+      padding:30px;
+      background:#2d6a4f;
+      color:white;
+      margin-top:40px;
     }
   </style>
 </head>
@@ -81,41 +73,50 @@
 <body>
 
 <header>
-  <h1>Envoyer mon dessin</h1>
-  <p>Concours de dessin Espoyr # </p>
+  <h1>Concours de dessin Espoyr</h1>
+  <p>Illustrons ensemble un livre pour enfants et adultes</p>
 </header>
 
 <div class="container">
+
   <div class="card">
+    <h2>✏️ Le projet</h2>
+    <p>
+      Propose ton dessin pour illustrer un livre collectif publié
+      pour les fêtes de fin d’année.
+    </p>
 
-    <div class="info">
-      Le dessin doit être envoyé en format JPG ou PNG.
-      Il sera vérifié avant d’être affiché pour le vote.
-    </div>
-
-    <form>
-      <label for="prenom">Prénom</label>
-      <input type="text" id="prenom" name="prenom" required>
-
-      <label for="age">Âge</label>
-      <input type="number" id="age" name="age" min="1" max="120" required>
-
-      <label for="email">Email du parent ou du participant</label>
-      <input type="email" id="email" name="email" required>
-
-      <label for="page">Numéro de la page illustrée</label>
-      <input type="number" id="page" name="page" min="1" required>
-
-      <label for="image">Image du dessin</label>
-      <input type="file" id="image" name="image" accept="image/png, image/jpeg" required lang="fr">
-
-      <button type="submit">Envoyer mon dessin</button>
-    </form>
-
-    <a class="retour" href="index.html">← Retour à l’accueil</a>
-
+    <p>
+      Tous les styles sont acceptés :
+      crayons, peinture, numérique, aquarelle…
+    </p>
   </div>
+
+  <div class="card">
+    <h2>📅 Dates importantes</h2>
+
+    <p><strong>Date limite :</strong> 15 septembre 2026</p>
+    <p><strong>Vote :</strong> 26 novembre 2026</p>
+    <p><strong>Résultats :</strong> 27 novembre 2026 à 16h</p>
+  </div>
+
+  <div class="card">
+    <h2>📬 Participer</h2>
+
+    <p>
+      Les dessins peuvent être envoyés directement depuis l’application.
+    </p>
+
+    <a class="btn" href="#">
+      Envoyer mon dessin
+    </a>
+  </div>
+
 </div>
+
+<footer>
+  Ensemble, donnons vie à une belle histoire ✨
+</footer>
 
 </body>
 </html>
