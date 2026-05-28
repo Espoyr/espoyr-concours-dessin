@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Envoyer mon dessin - Espoyr</title>
+
+  <style>
+    body{
+      font-family: Arial, sans-serif;
+      background:#f4f4f4;
+      margin:0;
+      color:#222;
+    }
+
+    header{
+      background:#2d6a4f;
+      color:white;
+      text-align:center;
+      padding:35px 20px;
+    }
+
+    .container{
+      max-width:700px;
+      margin:auto;
+      padding:20px;
+    }
+
+    .card{
+      background:white;
+      border-radius:12px;
+      padding:25px;
+      box-shadow:0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    label{
+      display:block;
+      margin-top:15px;
+      font-weight:bold;
+    }
+
+    input{
+      width:100%;
+      padding:12px;
+      margin-top:6px;
+      border:1px solid #ccc;
+      border-radius:8px;
+      font-size:16px;
+      box-sizing:border-box;
+    }
+
+    button{
+      margin-top:25px;
+      background:#ff9800;
+      color:white;
+      border:none;
+      padding:14px 22px;
+      border-radius:8px;
+      font-size:16px;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    .retour{
+      display:inline-block;
+      margin-top:20px;
+      color:#2d6a4f;
+      text-decoration:none;
+      font-weight:bold;
+    }
+
+    .info{
+      background:#e9f5ee;
+      padding:15px;
+      border-radius:8px;
+      margin-bottom:20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <h1>Envoyer mon dessin</h1>
+  <p>Concours de dessin Espoyr</p>
+</header>
+
+<div class="container">
+  <div class="card">
+
+    <div class="info">
+      Le dessin doit être envoyé en format JPG ou PNG.
+      Il sera vérifié avant d’être affiché pour le vote.
+    </div>
+
+    <form>
+      <label for="prenom">Prénom</label>
+      <input type="text" id="prenom" name="prenom" required>
+
+      <label for="age">Âge</label>
+      <input type="number" id="age" name="age" min="1" max="120" required>
+
+      <label for="email">Email du parent ou du participant</label>
+      <input type="email" id="email" name="email" required>
+
+      <label for="page">Numéro de la page illustrée</label>
+      <input type="number" id="page" name="page" min="1" required>
+
+      <label for="image">Image du dessin</label>
+      <input type="file" id="image" name="image" accept="image/png, image/jpeg" required>
+
+      <button type="submit">Envoyer mon dessin</button>
+    </form>
+
+    <a class="retour" href="index.html">← Retour à l’accueil</a>
+
+  </div>
+</div>
+
+</body>
+</html>.
