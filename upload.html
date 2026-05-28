@@ -6,6 +6,41 @@
   <title>Envoyer mon dessin - Espoyr</title>
 
   <style>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+
+<script>
+const supabaseUrl = 'https://mqslyuelcvmrntbmjlnz.supabase.co'
+const supabaseKey = 'COLLE_ICI_TA_CLE_PUBLISHABLE'
+
+const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
+
+document.querySelector("form").addEventListener("submit", async (e) => {
+  e.preventDefault()
+
+  const prenom = document.getElementById("prenom").value
+  const age = document.getElementById("age").value
+  const email = document.getElementById("email").value
+  const page = document.getElementById("page").value
+  const file = document.getElementById("image").files[0]
+
+  const fileName = Date.now() + "_" + file.name
+
+  const { data, error } = await supabase.storage
+    .from('dessins')
+    .upload(fileName, file)
+
+  if (error) {
+    alert("Erreur : " + error.message)
+    return
+  }
+
+  alert("Dessin envoyé avec succès !")
+
+  document.querySelector("form").reset()
+})
+</script>
+    
     body{
       font-family: Arial, sans-serif;
       background:#f4f4f4;
