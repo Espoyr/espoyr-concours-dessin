@@ -42,7 +42,12 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     return
   }
 
-  const nomFichier = Date.now() + '_' + file.name
+  const nomNettoye = file.name
+  .normalize("NFD")
+  .replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-zA-Z0-9._-]/g, "_")
+
+const nomFichier = Date.now() + "_" + nomNettoye
 
   const upload = await client.storage
     .from('dessins')
