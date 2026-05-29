@@ -31,6 +31,10 @@ const client = window.supabase.createClient(supabaseUrl, supabaseKey)
 document.getElementById('uploadForm').addEventListener('submit', async function(e){
   e.preventDefault()
 
+  const prenom = document.getElementById('prenom').value
+  const age = Number(document.getElementById('age').value)
+  const email = document.getElementById('email').value
+  const page = Number(document.getElementById('page').value)
   const file = document.getElementById('image').files[0]
 
   if(!file){
@@ -38,19 +42,35 @@ document.getElementById('uploadForm').addEventListener('submit', async function(
     return
   }
 
-  const nom = Date.now() + '_' + file.name
+  const nomFichier = Date.now() + '_' + file.name
 
-  const { error } = await client.storage
+  const upload = await client.storage
     .from('dessins')
-    .upload(nom, file)
+    .upload(nomFichier, file)
 
-  if(error){
-    alert('Erreur : ' + error.message)
-    console.error(error)
+  if(upload.error){
+    alert('Erreur image : ' + upload.error.message)
+    console.error(upload.error)
     return
   }
 
-  alert('Dessin envoyé avec succès')
+  const insertion = await client
+    .from('participations')
+    .insert({
+      prenom: prenom,
+      age: age,
+      email: email,
+      page: page,
+      image_url: nomFichier
+    })
+
+  if(insertion.error){
+    alert('Image envoyée, mais erreur données : ' + insertion.error.message)
+    console.error(insertion.error)
+    return
+  }
+
+  alert('Dessin et informations envoyés avec succès')
   document.getElementById('uploadForm').reset()
 })
 </script>
