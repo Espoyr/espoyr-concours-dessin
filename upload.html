@@ -3,200 +3,91 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Envoyer mon dessin - Espoyr</title>
-
-<style>
-body{
-    font-family: Arial, sans-serif;
-    background:#f4f4f4;
-    margin:0;
-    color:#222;
-}
-
-header{
-    background:#2d6a4f;
-    color:white;
-    text-align:center;
-    padding:40px 20px;
-}
-
-header h1{
-    margin:0;
-    font-size:40px;
-}
-
-header p{
-    margin-top:10px;
-    font-size:18px;
-}
-
-.container{
-    max-width:700px;
-    margin:40px auto;
-    padding:20px;
-}
-
-.card{
-    background:white;
-    padding:30px;
-    border-radius:12px;
-    box-shadow:0 2px 10px rgba(0,0,0,0.08);
-}
-
-label{
-    display:block;
-    margin-top:20px;
-    font-weight:bold;
-}
-
-input{
-    width:100%;
-    padding:12px;
-    margin-top:8px;
-    border:1px solid #ccc;
-    border-radius:8px;
-    font-size:16px;
-    box-sizing:border-box;
-}
-
-button{
-    margin-top:30px;
-    background:#ff9800;
-    color:white;
-    border:none;
-    padding:14px 24px;
-    border-radius:8px;
-    font-size:16px;
-    font-weight:bold;
-    cursor:pointer;
-}
-
-button:hover{
-    background:#f57c00;
-}
-
-.retour{
-    display:inline-block;
-    margin-top:25px;
-    color:#2d6a4f;
-    text-decoration:none;
-    font-weight:bold;
-}
-
-.info{
-    background:#e9f5ee;
-    padding:15px;
-    border-radius:8px;
-    margin-bottom:20px;
-}
-
-footer{
-    background:#2d6a4f;
-    color:white;
-    text-align:center;
-    padding:20px;
-    margin-top:40px;
-}
-</style>
+<title>Envoyer mon dessin</title>
 </head>
 
 <body>
 
-<header>
-    <h1>Envoyer mon dessin</h1>
-    <p>Concours de dessin Espoyr</p>
-</header>
+<h1>Envoyer mon dessin</h1>
 
-<div class="container">
+<form id="uploadForm">
 
-    <div class="card">
+<p>
+Prénom<br>
+<input type="text" id="prenom" required>
+</p>
 
-        <div class="info">
-            Le dessin doit être envoyé en format JPG ou PNG.
-            Il sera vérifié avant d’être affiché pour le vote.
-        </div>
+<p>
+Âge<br>
+<input type="number" id="age" required>
+</p>
 
-        <form id="uploadForm">
+<p>
+Email<br>
+<input type="email" id="email" required>
+</p>
 
-            <label for="prenom">Prénom</label>
-            <input type="text" id="prenom" required>
+<p>
+Numéro de page<br>
+<input type="number" id="page" required>
+</p>
 
-            <label for="age">Âge</label>
-            <input type="number" id="age" required>
+<p>
+Image<br>
+<input type="file" id="image" accept=".jpg,.jpeg,.png" required>
+</p>
 
-            <label for="email">Email du parent ou du participant</label>
-            <input type="email" id="email" required>
+<button type="submit">
+Envoyer mon dessin
+</button>
 
-            <label for="page">Numéro de la page illustrée</label>
-            <input type="number" id="page" required>
+</form>
 
-            <label for="image">Image du dessin</label>
-            <input type="file" id="image" accept="image/png, image/jpeg" required>
-
-            <button type="submit">Envoyer mon dessin</button>
-
-        </form>
-
-        <a class="retour" href="index.html">
-            ← Retour à l’accueil
-        </a>
-
-    </div>
-
-</div>
-
-<footer>
-    Ensemble, donnons vie à une belle histoire ✨
-</footer>
-
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
 
-const supabaseUrl = 'https://mqslyuelcvmrntbmjlnz.supabase.co'
+const supabaseUrl =
+'https://mqslyuelcvmrntbmjlnz.supabase.co'
 
-const supabaseKey = 'COLLE_ICI_TA_CLE_PUBLISHABLE'
+const supabaseKey =
+'METTRE_ICI_VOTRE_CLE_PUBLISHABLE'
 
-const supabase = window.supabase.createClient(
-    supabaseUrl,
-    supabaseKey
+const client =
+window.supabase.createClient(
+supabaseUrl,
+supabaseKey
 )
 
 document
-.getElementById("uploadForm")
-.addEventListener("submit", async (e) => {
+.getElementById('uploadForm')
+.addEventListener('submit', async function(e){
 
-    e.preventDefault()
+e.preventDefault()
 
-    const prenom = document.getElementById("prenom").value
-    const age = document.getElementById("age").value
-    const email = document.getElementById("email").value
-    const page = document.getElementById("page").value
+const file =
+document.getElementById('image').files[0]
 
-    const file = document.getElementById("image").files[0]
+if(!file){
+alert('Choisissez une image')
+return
+}
 
-    if(!file){
-        alert("Veuillez choisir une image.")
-        return
-    }
+const nom =
+Date.now() + '_' + file.name
 
-    const fileName =
-        Date.now() + "_" + file.name
+const { error } =
+await client.storage
+.from('dessins')
+.upload(nom,file)
 
-    const { data, error } = await supabase
-        .storage
-        .from('dessins')
-        .upload(fileName, file)
+if(error){
+alert(error.message)
+console.error(error)
+return
+}
 
-    if(error){
-        alert("Erreur : " + error.message)
-        console.error(error)
-        return
-    }
-
-    alert("Dessin envoyé avec succès !")
-
-    document.getElementById("uploadForm").reset()
+alert('Dessin envoyé avec succès')
 
 })
 
