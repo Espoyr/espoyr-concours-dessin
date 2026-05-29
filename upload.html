@@ -11,86 +11,48 @@
 <h1>Envoyer mon dessin</h1>
 
 <form id="uploadForm">
+  <p>Prénom<br><input type="text" id="prenom" required></p>
+  <p>Âge<br><input type="number" id="age" required></p>
+  <p>Email<br><input type="email" id="email" required></p>
+  <p>Numéro de page<br><input type="number" id="page" required></p>
+  <p>Image<br><input type="file" id="image" accept=".jpg,.jpeg,.png" required></p>
 
-<p>
-Prénom<br>
-<input type="text" id="prenom" required>
-</p>
-
-<p>
-Âge<br>
-<input type="number" id="age" required>
-</p>
-
-<p>
-Email<br>
-<input type="email" id="email" required>
-</p>
-
-<p>
-Numéro de page<br>
-<input type="number" id="page" required>
-</p>
-
-<p>
-Image<br>
-<input type="file" id="image" accept=".jpg,.jpeg,.png" required>
-</p>
-
-<button type="submit">
-Envoyer mon dessin
-</button>
-
+  <button type="submit">Envoyer mon dessin</button>
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+const supabaseUrl = 'https://mqslyuelcvmrntbmjlnz.supabase.co'
+const supabaseKey = 'sb_publishable_5vPnmzaFvNMV7RW4BwVL1w_lnPzDyeQ'
 
-const supabaseUrl =
-'https://mqslyuelcvmrntbmjlnz.supabase.co'
+const client = window.supabase.createClient(supabaseUrl, supabaseKey)
 
-const supabaseKey =
-'METTRE_ICI_VOTRE_CLE_PUBLISHABLE'
+document.getElementById('uploadForm').addEventListener('submit', async function(e){
+  e.preventDefault()
 
-const client =
-window.supabase.createClient(
-supabaseUrl,
-supabaseKey
-)
+  const file = document.getElementById('image').files[0]
 
-document
-.getElementById('uploadForm')
-.addEventListener('submit', async function(e){
+  if(!file){
+    alert('Choisissez une image')
+    return
+  }
 
-e.preventDefault()
+  const nom = Date.now() + '_' + file.name
 
-const file =
-document.getElementById('image').files[0]
+  const { error } = await client.storage
+    .from('dessins')
+    .upload(nom, file)
 
-if(!file){
-alert('Choisissez une image')
-return
-}
+  if(error){
+    alert('Erreur : ' + error.message)
+    console.error(error)
+    return
+  }
 
-const nom =
-Date.now() + '_' + file.name
-
-const { error } =
-await client.storage
-.from('dessins')
-.upload(nom,file)
-
-if(error){
-alert(error.message)
-console.error(error)
-return
-}
-
-alert('Dessin envoyé avec succès')
-
+  alert('Dessin envoyé avec succès')
+  document.getElementById('uploadForm').reset()
 })
-
 </script>
 
 </body>
