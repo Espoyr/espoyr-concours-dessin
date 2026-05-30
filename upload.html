@@ -12,10 +12,19 @@
 
 <form id="uploadForm">
   <p>Prénom<br><input type="text" id="prenom" required></p>
-  <p>Âge<br><input type="number" id="age" required></p>
+  <p>Âge<br><input type="number" id="age" min="4" max="18" required></p>
   <p>Email<br><input type="email" id="email" required></p>
-  <p>Numéro de page<br><input type="number" id="page" required></p>
+  <p>Numéro de page<br><input type="number" id="page" min="1" required></p>
   <p>Image<br><input type="file" id="image" accept=".jpg,.jpeg,.png" required></p>
+
+  <p>
+    <label>
+      <input type="checkbox" id="engagement" required>
+      Je certifie sur l’honneur que le dessin envoyé a été réalisé à la main par le participant.
+      Si ce dessin est classé parmi les deux premiers, je m’engage à envoyer l’original dans les 7 jours à :
+      ASBL Espoyr, rue de l’Entente 7, 4140 Sprimont.
+    </label>
+  </p>
 
   <button type="submit">Envoyer mon dessin</button>
 </form>
@@ -31,23 +40,59 @@ const client = window.supabase.createClient(supabaseUrl, supabaseKey)
 document.getElementById('uploadForm').addEventListener('submit', async function(e){
   e.preventDefault()
 
-  const prenom = document.getElementById('prenom').value
+  const prenom = document.getElementById('prenom').value.trim()
   const age = Number(document.getElementById('age').value)
-  const email = document.getElementById('email').value
+  const email = document.getElementById('email').value.trim()
   const page = Number(document.getElementById('page').value)
   const file = document.getElementById('image').files[0]
+  const engagement = document.getElementById('engagement').checked
+
+  if(!prenom){
+    alert('Veuillez indiquer le prénom.')
+    return
+  }
+
+  if(age < 4 || age > 18){
+    alert("L'âge doit être compris entre 4 et 18 ans.")
+    return
+  }
+
+  if(!email || !email.includes('@')){
+    alert('Veuillez indiquer une adresse email valide.')
+    return
+  }
+
+  if(page < 1){
+    alert('Veuillez indiquer un numéro de page valide.')
+    return
+  }
 
   if(!file){
-    alert('Choisissez une image')
+    alert('Choisissez une image.')
+    return
+  }
+
+  if(file.size > 10 * 1024 * 1024){
+    alert('Image trop volumineuse : maximum 10 Mo.')
+    return
+  }
+
+  if(!['image/png', 'image/jpeg'].includes(file.type)){
+    alert('Format accepté : JPG, JPEG ou PNG.')
+    return
+  }
+
+  if(!engagement){
+    alert("Vous devez accepter l'engagement sur l'honneur.")
     return
   }
 
   const nomNettoye = file.name
-  .normalize("NFD")
-  .replace(/[\u0300-\u036f]/g, "")
-  .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
 
-const nomFichier = Date.now() + "_" + nomNettoye
+  const nomFichier = Date.now() + "_" + nomNettoye
 
   const upload = await client.storage
     .from('dessins')
@@ -66,7 +111,17 @@ const nomFichier = Date.now() + "_" + nomNettoye
       age: age,
       email: email,
       page: page,
-      image_url: nomFichier
+      image_url: nomFichier,
+      engagement: true,
+      email_confirmation: false,
+      code_confirmation: null,
+      code_connexion: null,
+      statut: 'recu',
+      dossier_valide_participant: false,
+      visible_vote: false,
+      numero_dessin: 1,
+      date_validation: null,
+      date_validation_participant: null
     })
 
   if(insertion.error){
@@ -75,7 +130,7 @@ const nomFichier = Date.now() + "_" + nomNettoye
     return
   }
 
-  alert('Dessin et informations envoyés avec succès')
+  alert('Dessin et informations envoyés avec succès.')
   document.getElementById('uploadForm').reset()
 })
 </script>
