@@ -26,7 +26,7 @@
     </label>
   </p>
 
-  <button type="submit">Envoyer mon dessin</button>
+  <button id="submitBtn" type="submit">Envoyer mon dessin</button>
 </form>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -40,98 +40,99 @@ const client = window.supabase.createClient(supabaseUrl, supabaseKey)
 document.getElementById('uploadForm').addEventListener('submit', async function(e){
   e.preventDefault()
 
-  const prenom = document.getElementById('prenom').value.trim()
-  const age = Number(document.getElementById('age').value)
-  const email = document.getElementById('email').value.trim()
-  const page = Number(document.getElementById('page').value)
-  const file = document.getElementById('image').files[0]
-  const engagement = document.getElementById('engagement').checked
+  const btn = document.getElementById('submitBtn')
+  btn.disabled = true
+  btn.textContent = 'Envoi en cours...'
 
-  if(!prenom){
-    alert('Veuillez indiquer le prénom.')
-    return
+  try {
+    const prenom = document.getElementById('prenom').value.trim()
+    const age = Number(document.getElementById('age').value)
+    const email = document.getElementById('email').value.trim().toLowerCase()
+    const page = Number(document.getElementById('page').value)
+    const file = document.getElementById('image').files[0]
+    const engagement = document.getElementById('engagement').checked
+
+    if(!prenom) throw new Error('Veuillez indiquer le prénom.')
+    if(age < 4 || age > 18) throw new Error("L'âge doit être compris entre 4 et 18 ans.")
+    if(!email || !email.includes('@')) throw new Error('Veuillez indiquer une adresse email valide.')
+    if(page < 1) throw new Error('Veuillez indiquer un numéro de page valide.')
+    if(!file) throw new Error('Choisissez une image.')
+    if(file.size > 10 * 1024 * 1024) throw new Error('Image trop volumineuse : maximum 10 Mo.')
+    if(!['image/png', 'image/jpeg'].includes(file.type)) throw new Error('Format accepté : JPG, JPEG ou PNG.')
+    if(!engagement) throw new Error("Vous devez accepter l'engagement sur l'honneur.")
+
+    const total = await client
+      .from('participations')
+      .select('id')
+      .eq('email', email)
+
+    if(total.error) throw new Error(total.error.message)
+
+    if(total.data.length >= 10){
+      throw new Error('Vous avez déjà envoyé 10 dessins avec cette adresse email.')
+    }
+
+    const dejaPage = total.data.length > 0
+      ? await client
+          .from('participations')
+          .select('id')
+          .eq('email', email)
+          .eq('page', page)
+      : { data: [] }
+
+    if(dejaPage.error) throw new Error(dejaPage.error.message)
+
+    if(dejaPage.data.length > 0){
+      throw new Error('Vous avez déjà envoyé un dessin pour cette page.')
+    }
+
+    const numeroDessin = total.data.length + 1
+
+    const nomNettoye = file.name
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9._-]/g, "_")
+
+    const nomFichier = Date.now() + "_" + nomNettoye
+
+    const upload = await client.storage
+      .from('dessins')
+      .upload(nomFichier, file)
+
+    if(upload.error) throw new Error('Erreur image : ' + upload.error.message)
+
+    const insertion = await client
+      .from('participations')
+      .insert({
+        prenom: prenom,
+        age: age,
+        email: email,
+        page: page,
+        image_url: nomFichier,
+        engagement: true,
+        email_confirmation: false,
+        code_confirmation: null,
+        code_connexion: null,
+        statut: 'recu',
+        dossier_valide_participant: false,
+        visible_vote: false,
+        numero_dessin: numeroDessin,
+        date_validation: null,
+        date_validation_participant: null
+      })
+
+    if(insertion.error) throw new Error('Image envoyée, mais erreur données : ' + insertion.error.message)
+
+    alert('Dessin et informations envoyés avec succès.')
+    document.getElementById('uploadForm').reset()
+
+  } catch(error) {
+    alert(error.message)
+    console.error(error)
   }
 
-  if(age < 4 || age > 18){
-    alert("L'âge doit être compris entre 4 et 18 ans.")
-    return
-  }
-
-  if(!email || !email.includes('@')){
-    alert('Veuillez indiquer une adresse email valide.')
-    return
-  }
-
-  if(page < 1){
-    alert('Veuillez indiquer un numéro de page valide.')
-    return
-  }
-
-  if(!file){
-    alert('Choisissez une image.')
-    return
-  }
-
-  if(file.size > 10 * 1024 * 1024){
-    alert('Image trop volumineuse : maximum 10 Mo.')
-    return
-  }
-
-  if(!['image/png', 'image/jpeg'].includes(file.type)){
-    alert('Format accepté : JPG, JPEG ou PNG.')
-    return
-  }
-
-  if(!engagement){
-    alert("Vous devez accepter l'engagement sur l'honneur.")
-    return
-  }
-
-  const nomNettoye = file.name
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9._-]/g, "_")
-
-  const nomFichier = Date.now() + "_" + nomNettoye
-
-  const upload = await client.storage
-    .from('dessins')
-    .upload(nomFichier, file)
-
-  if(upload.error){
-    alert('Erreur image : ' + upload.error.message)
-    console.error(upload.error)
-    return
-  }
-
-  const insertion = await client
-    .from('participations')
-    .insert({
-      prenom: prenom,
-      age: age,
-      email: email,
-      page: page,
-      image_url: nomFichier,
-      engagement: true,
-      email_confirmation: false,
-      code_confirmation: null,
-      code_connexion: null,
-      statut: 'recu',
-      dossier_valide_participant: false,
-      visible_vote: false,
-      numero_dessin: 1,
-      date_validation: null,
-      date_validation_participant: null
-    })
-
-  if(insertion.error){
-    alert('Image envoyée, mais erreur données : ' + insertion.error.message)
-    console.error(insertion.error)
-    return
-  }
-
-  alert('Dessin et informations envoyés avec succès.')
-  document.getElementById('uploadForm').reset()
+  btn.disabled = false
+  btn.textContent = 'Envoyer mon dessin'
 })
 </script>
 
