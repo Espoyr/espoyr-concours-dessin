@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Espace participant</title>
+</head>
+
+<body>
+
+<h1>Mon espace participant</h1>
+
+<div id="info"></div>
+
+<hr>
+
+<h2>Ajouter un enfant</h2>
+
+<form id="enfantForm">
+
+<p>
+Prénom de l'enfant<br>
+<input type="text" id="prenom" required>
+</p>
+
+<p>
+Âge<br>
+<input type="number" id="age" min="6" max="16" required>
+</p>
+
+<p>
+Nom du parent<br>
+<input type="text" id="nomParent" required>
+</p>
+
+<p>
+Email du parent<br>
+<input type="email" id="emailParent" required>
+</p>
+
+<button type="submit">
+Ajouter cet enfant
+</button>
+
+</form>
+
+<div id="message"></div>
+
+<script>
+
+const emailParent =
+localStorage.getItem("espoyr_email_parent")
+
+if(!emailParent){
+  location.href="upload.html"
+}
+
+document.getElementById("info").innerHTML =
+"<b>Connecté :</b> " + emailParent
+
+document.getElementById("emailParent").value =
+emailParent
+
+</script>
+
+</body>
+</html>
