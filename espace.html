@@ -2,65 +2,94 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Espace participant</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding:0 15px; color:#222; }
+h1 { color:#2d6a4f; }
+input { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
+button { padding:10px; margin-top:12px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; }
+.box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
+.enfant { border-bottom:1px solid #eee; padding:10px 0; }
+.msg { margin-top:10px; }
+</style>
 </head>
-
 <body>
-
 <h1>Mon espace participant</h1>
+<div id="info">Vérification de la connexion…</div>
 
-<div id="info"></div>
-
-<hr>
-
+<div class="box">
 <h2>Ajouter un enfant</h2>
+<p>Prénom de l'enfant<br><input type="text" id="prenom"></p>
+<p>Âge<br><input type="number" id="age"></p>
+<p>Nom du parent<br><input type="text" id="nomParent"></p>
+<button id="btnAjouter">Ajouter cet enfant</button>
+<div id="messageAjout" class="msg"></div>
+</div>
 
-<form id="enfantForm">
-
-<p>
-Prénom de l'enfant<br>
-<input type="text" id="prenom" required>
-</p>
-
-<p>
-Âge<br>
-<input type="number" id="age" min="6" max="16" required>
-</p>
-
-<p>
-Nom du parent<br>
-<input type="text" id="nomParent" required>
-</p>
-
-<p>
-Email du parent<br>
-<input type="email" id="emailParent" required>
-</p>
-
-<button type="submit">
-Ajouter cet enfant
-</button>
-
-</form>
-
-<div id="message"></div>
+<div class="box">
+<h2>Mes enfants inscrits</h2>
+<div id="listeEnfants">Chargement…</div>
+</div>
 
 <script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
+const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
 
-const emailParent =
-localStorage.getItem("espoyr_email_parent")
+const email = localStorage.getItem("espoyr_email_parent")
+const code = localStorage.getItem("espoyr_code")
 
-if(!emailParent){
-  location.href="upload.html"
+if (!email || !code) { location.href = "upload.html" }
+
+function sessionExpiree() {
+  localStorage.removeItem("espoyr_email_parent")
+  localStorage.removeItem("espoyr_code")
+  alert("Ta session a expiré. Reconnecte-toi avec ton code.")
+  location.href = "upload.html"
 }
 
-document.getElementById("info").innerHTML =
-"<b>Connecté :</b> " + emailParent
+async function chargerEnfants() {
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/liste-enfants", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
+    const result = await r.json()
+    if (result.code === "AUTH") { sessionExpiree(); return }
+    if (!result.success) { document.getElementById("listeEnfants").textContent = "Erreur : " + (result.message || "chargement impossible"); return }
 
-document.getElementById("emailParent").value =
-emailParent
+    document.getElementById("info").innerHTML = "<b>Connecté :</b> " + email
+    const enfants = result.enfants || []
+    const zone = document.getElementById("listeEnfants")
+    if (enfants.length === 0) { zone.textContent = "Aucun enfant inscrit pour le moment."; return }
+    let html = ""
+    enfants.forEach(function(e){ html += "<div class='enfant'><b>" + e.prenom_enfant + "</b> (" + e.age_enfant + " ans)</div>" })
+    zone.innerHTML = html
+  } catch (err) {
+    document.getElementById("listeEnfants").textContent = "Erreur réseau : " + err.message
+  }
+}
 
+async function ajouterEnfant() {
+  const prenom = document.getElementById("prenom").value.trim()
+  const age = document.getElementById("age").value.trim()
+  const nomParent = document.getElementById("nomParent").value.trim()
+  const msg = document.getElementById("messageAjout")
+  msg.textContent = "Envoi…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-enfant", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code, prenom: prenom, age: age, nom_parent: nomParent }) })
+    const result = await r.json()
+    if (result.code === "AUTH") { sessionExpiree(); return }
+    if (!result.success) { msg.textContent = "❌ " + (result.message || "Erreur"); return }
+    msg.textContent = "✅ " + prenom + " a bien été ajouté."
+    document.getElementById("prenom").value = ""
+    document.getElementById("age").value = ""
+    chargerEnfants()
+  } catch (err) {
+    msg.textContent = "Erreur réseau : " + err.message
+  }
+}
+
+document.getElementById("btnAjouter").addEventListener("click", ajouterEnfant)
+chargerEnfants()
 </script>
-
 </body>
 </html>
