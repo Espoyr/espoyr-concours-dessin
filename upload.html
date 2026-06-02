@@ -2,37 +2,30 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connexion concours Espoyr</title>
 </head>
-
 <body>
 
 <h1>Concours de dessin Espoyr</h1>
 
 <h2>1. Recevoir mon code</h2>
-
 <form id="demandeCodeForm">
   <p>Email du parent<br>
     <input type="email" id="emailDemande" required>
   </p>
-
   <button type="submit">Recevoir mon code</button>
 </form>
 
 <hr>
 
 <h2>2. Me connecter avec mon code</h2>
-
 <form id="connexionForm">
   <p>Email du parent<br>
     <input type="email" id="emailConnexion" required>
   </p>
-
   <p>Code reçu par email<br>
     <input type="text" id="codeConnexion" required>
   </p>
-
   <button type="submit">Me connecter</button>
 </form>
 
@@ -40,14 +33,10 @@
 
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const envoyerCodeUrl = supabaseUrl + "/functions/v1/envoyer-code"
+const verifierCodeUrl = supabaseUrl + "/functions/v1/verifier-code"
 
-const envoyerCodeUrl =
-supabaseUrl + "/functions/v1/envoyer-code"
-
-const verifierCodeUrl =
-supabaseUrl + "/functions/v1/verifier-code"
-
-document.getElementById("demandeCodeForm").addEventListener("submit", async function(e){
+document.getElementById("demandeCodeForm").addEventListener("submit", async function(e) {
   e.preventDefault()
 
   const email = document.getElementById("emailDemande").value.trim().toLowerCase()
@@ -55,27 +44,32 @@ document.getElementById("demandeCodeForm").addEventListener("submit", async func
 
   message.innerHTML = "Envoi du code en cours..."
 
-  const response = await fetch(envoyerCodeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      email: email
+  try {
+    const response = await fetch(envoyerCodeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email
+      })
     })
-  })
 
-  const result = await response.json()
+    const result = await response.json()
 
-  if(!response.ok){
-    message.innerHTML = "Erreur : " + (result.error || "impossible d'envoyer le code")
-    return
+    if (!response.ok || result.success === false) {
+      message.innerHTML = "Erreur : " + (result.error || "impossible d’envoyer le code")
+      return
+    }
+
+    document.getElementById("emailConnexion").value = email
+    message.innerHTML = "Un code vient d’être envoyé à " + email
+  } catch (error) {
+    message.innerHTML = "Erreur réseau : " + error.message
   }
-
-  message.innerHTML = "Un code vient d’être envoyé à " + email
 })
 
-document.getElementById("connexionForm").addEventListener("submit", async function(e){
+document.getElementById("connexionForm").addEventListener("submit", async function(e) {
   e.preventDefault()
 
   const email = document.getElementById("emailConnexion").value.trim().toLowerCase()
@@ -84,30 +78,31 @@ document.getElementById("connexionForm").addEventListener("submit", async functi
 
   message.innerHTML = "Vérification du code..."
 
-  const response = await fetch(verifierCodeUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      email: email,
-      code: code
+  try {
+    const response = await fetch(verifierCodeUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        email: email,
+        code: code
+      })
     })
-  })
 
-  const result = await response.json()
+    const result = await response.json()
 
-  if(!response.ok || !result.ok){
-    message.innerHTML = "Erreur : " + (result.error || "code incorrect")
-    return
+    if (!response.ok || !result.ok) {
+      message.innerHTML = "Erreur : " + (result.error || "code incorrect")
+      return
+    }
+
+    localStorage.setItem("espoyr_email_parent", email)
+    window.location.href = "espace.html"
+
+  } catch (error) {
+    message.innerHTML = "Erreur réseau : " + error.message
   }
-
-  localStorage.setItem("espoyr_email_parent", email)
-
-  message.innerHTML =
-    "<h2>Connexion réussie ✅</h2>" +
-    "<p>Vous pouvez maintenant accéder à votre espace participant.</p>" +
-    "<p><a href='espace.html'>Aller à mon espace</a></p>"
 })
 </script>
 
