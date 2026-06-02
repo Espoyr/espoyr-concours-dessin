@@ -8,7 +8,7 @@
 body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding:0 15px; color:#222; }
 h1 { color:#2d6a4f; }
 input, select { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
-button { padding:10px; margin-top:12px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; }
+button { padding:12px; margin-top:12px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; font-size:1em; }
 .box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
 .enfant { border:1px solid #ddd; border-radius:8px; padding:15px; margin:15px 0; }
 .dessin { display:flex; align-items:center; gap:12px; border-bottom:1px solid #eee; padding:8px 0; }
@@ -112,9 +112,10 @@ function rendreEnfant(e) {
     if (opts === "") {
       html += "<p><small>Toutes les pages disponibles ont déjà un dessin.</small></p>"
     } else {
-      html += "<div class='depot'><p>Ajouter un dessin :</p>"
-      html += "<select id='page_" + e.id + "'>" + opts + "</select>"
-      html += "<input type='file' id='fichier_" + e.id + "' accept='image/*'>"
+      html += "<div class='depot'><p><b>Ajouter un dessin</b></p>"
+      html += "<label>Page :</label><select id='page_" + e.id + "'>" + opts + "</select>"
+      html += "<p style='margin-top:10px;'>📷 Prendre une photo :<br><input type='file' accept='image/*' capture='environment' id='photo_" + e.id + "'></p>"
+      html += "<p>🖼️ ou choisir une image existante :<br><input type='file' accept='image/*' id='galerie_" + e.id + "'></p>"
       html += "<button onclick='deposerDessin(" + e.id + ")'>Déposer ce dessin</button>"
       html += "<div class='msg' id='msgDepot_" + e.id + "'></div></div>"
     }
@@ -145,9 +146,13 @@ async function chargerEnfants() {
 
 async function deposerDessin(participantId) {
   const page = document.getElementById("page_" + participantId).value
-  const fichier = document.getElementById("fichier_" + participantId).files[0]
+  const inputPhoto = document.getElementById("photo_" + participantId)
+  const inputGalerie = document.getElementById("galerie_" + participantId)
   const msg = document.getElementById("msgDepot_" + participantId)
-  if (!fichier) { msg.textContent = "Choisis ou prends une photo d'abord."; return }
+  let fichier = null
+  if (inputPhoto && inputPhoto.files[0]) fichier = inputPhoto.files[0]
+  else if (inputGalerie && inputGalerie.files[0]) fichier = inputGalerie.files[0]
+  if (!fichier) { msg.textContent = "Prends une photo ou choisis une image d'abord."; return }
   msg.textContent = "Envoi de l'image…"
   try {
     const imageBase64 = await compresserImage(fichier)
