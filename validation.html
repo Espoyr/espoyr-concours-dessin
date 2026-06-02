@@ -20,7 +20,7 @@ button { padding:10px 14px; border:0; border-radius:6px; cursor:pointer; color:w
 .statut { font-size:0.85em; padding:2px 8px; border-radius:10px; background:#eee; }
 .btn-ok { background:#2d6a4f; }
 .btn-non { background:#b23b3b; }
-.actions { display:flex; gap:8px; }
+.actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
 small { color:#666; }
 </style>
 </head>
@@ -133,28 +133,40 @@ function afficherListe(dessins) {
     html += "<a href='" + d.image_url + "' target='_blank'><img src='" + d.image_url + "' alt=''></a>"
     html += "<div class='infos'><b>" + d.prenom_enfant + "</b> (" + d.age_enfant + " ans) — page " + d.page + "<br>"
     html += "<small>" + d.nom_parent + " · " + d.email_parent + "</small><br>" + badgeStatut(d.statut) + "</div>"
-    html += "<div class='actions'>"
-    if (d.statut !== "accepte") html += "<button class='btn-ok' onclick='valider(" + d.id + ", \"accepte\")'>Accepter</button>"
-    if (d.statut !== "refuse") html += "<button class='btn-non' onclick='valider(" + d.id + ", \"refuse\")'>Refuser</button>"
+    html += "<div class='actions' id='actions_" + d.id + "'>"
+    if (d.statut !== "accepte") html += "<button class='btn-ok' onclick='demander(" + d.id + ", \"accepte\")'>Accepter</button>"
+    if (d.statut !== "refuse") html += "<button class='btn-non' onclick='demander(" + d.id + ", \"refuse\")'>Refuser</button>"
     html += "</div></div>"
   })
   zone.innerHTML = html
 }
 
-async function valider(dessinId, decision) {
-  const texte = decision === "accepte" ? "ACCEPTER ce dessin ? Il sera proposé au vote." : "REFUSER ce dessin ?"
-  if (!confirm(texte)) return
+function demander(dessinId, decision) {
+  const zone = document.getElementById("actions_" + dessinId)
+  if (!zone) return
+  const mot = decision === "accepte" ? "Accepter" : "Refuser"
+  const couleur = decision === "accepte" ? "btn-ok" : "btn-non"
+  zone.innerHTML = "<span style='margin-right:6px;'>Confirmer ?</span>" +
+    "<button class='" + couleur + "' onclick='executer(" + dessinId + ", \"" + decision + "\")'>Oui, " + mot + "</button> " +
+    "<button style='background:#888;' onclick='charger()'>Annuler</button>"
+}
+
+async function executer(dessinId, decision) {
+  const zone = document.getElementById("actions_" + dessinId)
+  if (zone) zone.innerHTML = "Enregistrement…"
   try {
     const r = await fetch(supabaseUrl + "/functions/v1/valider-dessin", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: motDePasse, dessin_id: dessinId, decision: decision }) })
     const result = await r.json()
-    if (!result.ok) { alert("Erreur : " + (result.erreur || "action impossible")); return }
+    if (!result.ok) { if (zone) zone.innerHTML = "<span style='color:#b23b3b;'>Erreur : " + (result.erreur || "action impossible") + "</span>"; return }
     charger()
   } catch (err) {
-    alert("Erreur réseau : " + err.message)
+    if (zone) zone.innerHTML = "<span style='color:#b23b3b;'>Erreur réseau : " + err.message + "</span>"
   }
 }
 
-window.valider = valider
+window.demander = demander
+window.executer = executer
+window.charger = charger
 
 document.getElementById("btnConnexion").addEventListener("click", function(){
   motDePasse = document.getElementById("motDePasse").value
