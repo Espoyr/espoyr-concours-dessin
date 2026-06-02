@@ -1,105 +1,113 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Connexion concours Espoyr</title>
+<style>
+body { font-family: Arial; max-width: 900px; margin: 30px auto; }
+input, button { padding: 10px; margin-top: 5px; width: 100%; }
+button { background: #2d6a4f; color: white; border: 0; cursor: pointer; }
+pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
+.box { border: 1px solid #ccc; padding: 20px; margin: 20px 0; }
+</style>
+</head>
+<body>
+<h1>Concours de dessin Espoyr</h1>
+<div class="box">
+<h2>1. Recevoir mon code</h2>
+<form id="demandeCodeForm">
+<p>Email du parent<br><input type="email" id="emailDemande" required></p>
+<button type="submit">Recevoir mon code</button>
+</form>
+</div>
+<div class="box">
+<h2>2. Me connecter avec mon code</h2>
+<form id="connexionForm">
+<p>Email du parent<br><input type="email" id="emailConnexion" required></p>
+<p>Code reçu par email<br><input type="text" id="codeConnexion" required></p>
+<button type="submit">Me connecter</button>
+</form>
+</div>
+<div class="box">
+<h2>Diagnostic</h2>
+<div id="message">Aucune action pour le moment.</div>
+</div>
+<script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+// >>> COLLE ICI TA CLE ANON (Settings > API > Project API keys > anon public) <
+const supabaseAnonKey = "COLLE_ICI_TA_CLE_ANON"
+
+const envoyerCodeUrl = supabaseUrl + "/functions/v1/envoyer-code"
+const verifierCodeUrl = supabaseUrl + "/functions/v1/verifier-code"
+
+// En-tetes communs aux deux appels : la cle anon debloque la passerelle Supabase
+const enTetes = {
+  "Content-Type": "application/json",
+  "apikey": supabaseAnonKey,
+  "Authorization": "Bearer " + supabaseAnonKey
 }
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders })
-  }
+function bloc(titre, contenu) {
+  return "<h3>" + titre + "</h3><pre>" +
+    JSON.stringify(contenu, null, 2) +
+    "</pre>"
+}
 
+document.getElementById("demandeCodeForm").addEventListener("submit", async function(e) {
+  e.preventDefault()
+  const email = document.getElementById("emailDemande").value.trim().toLowerCase()
+  const message = document.getElementById("message")
+  const donneesEnvoyees = { email: email }
+  message.innerHTML = bloc("1. Valeurs envoyées à envoyer-code", donneesEnvoyees)
   try {
-    const body = await req.json()
-    const email = String(body.email || "").trim().toLowerCase()
-
-    if (!email) throw new Error("Email obligatoire")
-
-    const base = Math.floor(100000 + Math.random() * 900000).toString()
-    const somme = base.split("").reduce((t, c) => t + Number(c), 0)
-    const code = base + (somme % 10)
-
-    const expiration = "2026-10-15 21:59:59"
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    )
-
-    const { data: ancienneLigne, error: searchError } = await supabase
-      .from("connexions")
-      .select("id")
-      .eq("email", email)
-      .maybeSingle()
-
-    if (searchError) throw searchError
-
-    if (ancienneLigne) {
-      const { error: updateError } = await supabase
-        .from("connexions")
-        .update({
-          code_connexion: code,
-          valide_jusqua: expiration,
-        })
-        .eq("id", ancienneLigne.id)
-
-      if (updateError) throw updateError
-    } else {
-      const { error: insertError } = await supabase
-        .from("connexions")
-        .insert({
-          email: email,
-          code_connexion: code,
-          valide_jusqua: expiration,
-        })
-
-      if (insertError) throw insertError
-    }
-
-    const mail = await fetch("https://api.brevo.com/v3/smtp/email", {
+    const response = await fetch(envoyerCodeUrl, {
       method: "POST",
-      headers: {
-        accept: "application/json",
-        "api-key": Deno.env.get("BREVO_API_KEY")!,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        sender: {
-          name: "Concours Dessin Espoyr",
-          email: "espoyr.asbl@gmail.com",
-        },
-        to: [{ email: email }],
-        subject: "Votre code de connexion - Concours Espoyr",
-        htmlContent: `
-          <h2>Concours de dessin Espoyr</h2>
-          <p>Votre code de connexion :</p>
-          <h1>${code}</h1>
-          <p>Ce code est valable jusqu'au <strong>${expiration}</strong>.</p>
-        `,
-      }),
+      headers: enTetes,
+      body: JSON.stringify(donneesEnvoyees)
     })
-
-    if (!mail.ok) throw new Error(await mail.text())
-
-    return new Response(JSON.stringify({
-      success: true,
-      message: "Code envoyé",
-      email: email
-    }), {
-      status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
-
-  } catch (e) {
-    return new Response(JSON.stringify({
-      success: false,
-      error: String(e)
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    })
+    const result = await response.json()
+    message.innerHTML += bloc("2. Réponse reçue de envoyer-code", result)
+    if (response.ok && result.success !== false) {
+      document.getElementById("emailConnexion").value = email
+      message.innerHTML += "<p><strong>Code envoyé ✅</strong></p>"
+    } else {
+      message.innerHTML += "<p><strong>Erreur envoi code ❌</strong></p>"
+    }
+  } catch (error) {
+    message.innerHTML += bloc("Erreur réseau envoyer-code", { erreur: error.message })
   }
 })
+
+document.getElementById("connexionForm").addEventListener("submit", async function(e) {
+  e.preventDefault()
+  const email = document.getElementById("emailConnexion").value.trim().toLowerCase()
+  const code = document.getElementById("codeConnexion").value.trim()
+  const message = document.getElementById("message")
+  const donneesEnvoyees = {
+    email: email,
+    code: code
+  }
+  message.innerHTML = bloc("1. Valeurs envoyées à verifier-code", donneesEnvoyees)
+  try {
+    const response = await fetch(verifierCodeUrl, {
+      method: "POST",
+      headers: enTetes,
+      body: JSON.stringify(donneesEnvoyees)
+    })
+    const result = await response.json()
+    message.innerHTML += bloc("2. Réponse reçue de verifier-code", result)
+    if (result.comparaison === true || result.ok === true) {
+      localStorage.setItem("espoyr_email_parent", email)
+      message.innerHTML += "<p><strong>Connexion réussie ✅</strong></p>"
+      message.innerHTML += "<p><a href='espace.html'>Aller à mon espace participant</a></p>"
+    } else {
+      message.innerHTML += "<p><strong>Connexion refusée ❌</strong></p>"
+    }
+  } catch (error) {
+    message.innerHTML += bloc("Erreur réseau verifier-code", { erreur: error.message })
+  }
+})
+</script>
+</body>
+</html>
