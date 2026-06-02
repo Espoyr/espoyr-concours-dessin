@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voter - Concours Espoyr</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 1000px; margin: 30px auto; padding:0 15px; color:#222; }
+h1 { color:#2d6a4f; }
+input, button { padding:10px; margin-top:6px; width:100%; box-sizing:border-box; }
+button { background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; font-size:1em; }
+.box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
+.info { background:#eef6f1; border-left:4px solid #2d6a4f; padding:10px 14px; margin-top:12px; font-size:0.9em; }
+.pageBloc { border:1px solid #ddd; border-radius:8px; padding:15px; margin:18px 0; }
+.galerie { display:flex; flex-wrap:wrap; gap:12px; margin-top:10px; }
+.choix { width:150px; border:3px solid transparent; border-radius:8px; cursor:pointer; padding:4px; background:#f7f7f7; }
+.choix img { width:100%; height:150px; object-fit:cover; border-radius:5px; display:block; }
+.choix.selected { border-color:#2d6a4f; background:#d4edda; }
+.gros { font-size:1.2em; text-align:center; padding:30px; }
+#btnValider { background:#ff9800; font-size:1.1em; padding:14px; }
+</style>
+</head>
+<body>
+<h1>🗳️ Voter pour les dessins</h1>
+<div id="contenu" class="gros">Chargement…</div>
+
+<script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
+const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
+
+let email = localStorage.getItem("espoyr_email_parent") || ""
+let code = localStorage.getItem("espoyr_code") || ""
+let pages = []
+let total = 0
+let done = 0
+let index = 0
+let selection = null
+
+function fmt(d) {
+  if (!d) return ""
+  return new Date(d).toLocaleDateString("fr-BE", { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric" })
+}
+
+function afficherConnexion(message) {
+  const c = document.getElementById("contenu")
+  c.className = ""
+  c.innerHTML =
+    "<div class='box'><h2>Pour voter, identifie-toi</h2>" +
+    (message ? "<p style='color:#b23b3b;'>" + message + "</p>" : "") +
+    "<p>Ton email<br><input type='email' id='emailVote' value='" + email + "'></p>" +
+    "<button id='btnCode'>Recevoir mon code par email</button>" +
+    "<div class='info'>Un code te sera envoyé par email. Un seul vote par personne.</div>" +
+    "<p style='margin-top:14px;'>Code reçu<br><input type='text' id='codeVote'></p>" +
+    "<button id='btnEntrer'>Voir les dessins et voter</button>" +
+    "<div id='msgVote' style='margin-top:10px;'></div></div>"
+  document.getElementById("btnCode").addEventListener("click", demanderCode)
+  document.getElementById("btnEntrer").addEventListener("click", entrer)
+}
+
+async function demanderCode() {
+  const e = document.getElementById("emailVote").value.trim().toLowerCase()
+  const msg = document.getElementById("msgVote")
+  if (!e) { msg.textContent = "Indique ton email d'abord."; return }
+  msg.textContent = "Envoi du code…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/envoyer-code", { method: "POST", headers: enTetes, body: JSON.stringify({ email: e }) })
+    const result = await r.json()
+    if (result.success === false) { msg.textContent = "❌ " + (result.error || "Erreur envoi"); return }
+    msg.textContent = "✅ Code envoyé ! Regarde ta boîte mail."
+  } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
+}
+
+function entrer() {
+  email = document.getElementById("emailVote").value.trim().toLowerCase()
+  code = document.getElementById("codeVote").value.trim()
+  if (!email || !code) { document.getElementById("msgVote").textContent = "Email et code obligatoires."; return }
+  localStorage.setItem("espoyr_email_parent", email)
+  localStorage.setItem("espoyr_code", code)
+  charger()
+}
+
+function fin(texte) {
+  const c = document.getElementById("contenu")
+  c.className = "gros"
+  c.innerHTML = "<p>" + texte + "</p><p><a href='index.html'>Retour à l'accueil</a></p>"
+}
+
+function choisir(dessinId, el) {
+  selection = dessinId
+  const cartes = el.parentNode.getElementsByClassName("choix")
+  for (let i = 0; i < cartes.length; i++) cartes[i].className = "choix"
+  el.className = "choix selected"
+}
+
+function afficherPage() {
+  const c = document.getElementById("contenu")
+  if (index >= pages.length) { fin("✅ Merci ! Ton vote est terminé."); return }
+  const pg = pages[index]
+  const numero = done + index + 1
+  selection = null
+  c.className = ""
+  let html = "<p style='text-align:center;'><b>Page " + numero + " / " + total + "</b></p>"
+  html += "<div class='pageBloc'><h3>Choisis ton dessin préféré pour la page " + pg.page + "</h3><div class='galerie'>"
+  pg.dessins.forEach(function(d){
+    html += "<div class='choix' onclick='choisir(" + d.id + ", this)'><img src='" + d.image_url + "' alt=''></div>"
+  })
+  html += "</div></div>"
+  html += "<button id='btnValider'>Valider et continuer →</button>"
+  html += "<button id='btnPasser' style='background:#888;'>Passer cette page</button>"
+  html += "<p style='text-align:center;margin-top:10px;'><a href='#' id='lienFini'>J'ai fini de voter</a></p>"
+  html += "<div id='msgPage' style='text-align:center;margin-top:8px;'></div>"
+  c.innerHTML = html
+  document.getElementById("btnValider").addEventListener("click", validerPage)
+  document.getElementById("btnPasser").addEventListener("click", passerPage)
+  document.getElementById("lienFini").addEventListener("click", function(ev){ ev.preventDefault(); fin("Merci pour ta participation !") })
+}
+
+async function validerPage() {
+  const msg = document.getElementById("msgPage")
+  if (!selection) { msg.textContent = "Choisis un dessin, ou clique « Passer cette page »."; return }
+  const pg = pages[index]
+  msg.textContent = "Enregistrement…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-vote", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code, page: pg.page, dessin_id: selection }) })
+    const result = await r.json()
+    if (result.code === "AUTH") { afficherConnexion("Ta session a expiré, reconnecte-toi."); return }
+    index++
+    afficherPage()
+  } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
+}
+
+function passerPage() { index++; afficherPage() }
+
+async function charger() {
+  const c = document.getElementById("contenu")
+  c.className = "gros"; c.textContent = "Chargement…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/liste-dessins-vote", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
+    const result = await r.json()
+    if (result.code === "AUTH") { afficherConnexion(""); return }
+    if (!result.ok) { afficherConnexion("Erreur : " + (result.erreur || "")); return }
+    if (result.etat === "avant") { c.innerHTML = "<p>🗓️ Le vote ouvrira le <b>" + fmt(result.ouverture) + "</b>.</p>"; return }
+    if (result.etat === "apres") { c.innerHTML = "<p>Le vote est clos. Merci à tous !</p>"; return }
+    total = result.total || 0
+    pages = result.pages || []
+    if (total === 0) { c.innerHTML = "<p>Aucun dessin n'est encore disponible pour le vote.</p>"; return }
+    if (pages.length === 0) { fin("Tu as déjà voté pour toutes les pages — merci !"); return }
+    done = total - pages.length
+    index = 0
+    afficherPage()
+  } catch (err) { c.innerHTML = "<p>Erreur réseau : " + err.message + "</p>" }
+}
+
+window.choisir = choisir
+
+async function init() {
+  const c = document.getElementById("contenu")
+  try {
+    const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", { headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey } })
+    const lignes = await r.json()
+    const p = {}
+    lignes.forEach(function(l){ p[l.cle] = l.valeur })
+    const maintenant = Date.now()
+    if (p.date_ouverture_vote && maintenant < new Date(p.date_ouverture_vote).getTime()) { c.innerHTML = "<p>🗓️ Le vote ouvrira le <b>" + fmt(p.date_ouverture_vote) + "</b>.</p>"; return }
+    if (p.date_fermeture_vote && maintenant >= new Date(p.date_fermeture_vote).getTime()) { c.innerHTML = "<p>Le vote est clos. Merci à tous !</p>"; return }
+    if (email && code) charger()
+    else afficherConnexion("")
+  } catch (e) { c.innerHTML = "<p>Erreur de chargement, réessaie.</p>" }
+}
+init()
+</script>
+</body>
+</html>
