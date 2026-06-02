@@ -7,11 +7,16 @@
 <style>
 body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding:0 15px; color:#222; }
 h1 { color:#2d6a4f; }
-input { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
+input, select { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
 button { padding:10px; margin-top:12px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; }
 .box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
-.enfant { border-bottom:1px solid #eee; padding:10px 0; }
-.msg { margin-top:10px; }
+.enfant { border:1px solid #ddd; border-radius:8px; padding:15px; margin:15px 0; }
+.dessin { display:flex; align-items:center; gap:12px; border-bottom:1px solid #eee; padding:8px 0; }
+.dessin img { width:60px; height:60px; object-fit:cover; border-radius:4px; }
+.statut { font-size:0.85em; padding:2px 8px; border-radius:10px; background:#eee; }
+.depot { margin-top:12px; background:#f7f7f7; padding:12px; border-radius:6px; }
+.msg { margin-top:8px; font-size:0.9em; }
+small { color:#666; }
 </style>
 </head>
 <body>
@@ -28,7 +33,7 @@ button { padding:10px; margin-top:12px; width:100%; background:#2d6a4f; color:wh
 </div>
 
 <div class="box">
-<h2>Mes enfants inscrits</h2>
+<h2>Mes enfants et leurs dessins</h2>
 <div id="listeEnfants">Chargement…</div>
 </div>
 
@@ -39,8 +44,10 @@ const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey,
 
 const email = localStorage.getItem("espoyr_email_parent")
 const code = localStorage.getItem("espoyr_code")
-
 if (!email || !code) { location.href = "upload.html" }
+
+let nombrePages = 10
+let maxDessins = 5
 
 function sessionExpiree() {
   localStorage.removeItem("espoyr_email_parent")
@@ -49,22 +56,112 @@ function sessionExpiree() {
   location.href = "upload.html"
 }
 
+async function chargerConfig() {
+  try {
+    const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", { headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey } })
+    const lignes = await r.json()
+    lignes.forEach(function(l){
+      if (l.cle === "nombre_pages") nombrePages = parseInt(l.valeur, 10)
+      if (l.cle === "nombre_max_dessins_par_enfant") maxDessins = parseInt(l.valeur, 10)
+    })
+  } catch (e) { console.error("config", e) }
+}
+
+function compresserImage(file) {
+  return new Promise(function(resolve, reject){
+    const reader = new FileReader()
+    reader.onload = function(){
+      const img = new Image()
+      img.onload = function(){
+        const maxSize = 1600
+        let w = img.width, h = img.height
+        if (w > h && w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize }
+        else if (h >= w && h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize }
+        const canvas = document.createElement("canvas")
+        canvas.width = w; canvas.height = h
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL("image/jpeg", 0.8))
+      }
+      img.onerror = reject
+      img.src = reader.result
+    }
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+function badgeStatut(s) {
+  if (s === "accepte") return "<span class='statut' style='background:#d4edda;'>accepté</span>"
+  if (s === "refuse") return "<span class='statut' style='background:#f8d7da;'>refusé</span>"
+  return "<span class='statut'>en attente</span>"
+}
+
+function rendreEnfant(e) {
+  const dessins = e.dessins || []
+  const pagesUtilisees = dessins.map(function(d){ return d.page })
+  let html = "<div class='enfant'>"
+  html += "<b>" + e.prenom_enfant + "</b> (" + e.age_enfant + " ans) — " + dessins.length + "/" + maxDessins + " dessins"
+  dessins.forEach(function(d){
+    html += "<div class='dessin'><img src='" + d.image_url + "' alt=''><span>Page " + d.page + "</span> " + badgeStatut(d.statut) + "</div>"
+  })
+  if (dessins.length < maxDessins) {
+    let opts = ""
+    for (let p = 1; p <= nombrePages; p++) {
+      if (pagesUtilisees.indexOf(p) === -1) opts += "<option value='" + p + "'>Page " + p + "</option>"
+    }
+    if (opts === "") {
+      html += "<p><small>Toutes les pages disponibles ont déjà un dessin.</small></p>"
+    } else {
+      html += "<div class='depot'><p>Ajouter un dessin :</p>"
+      html += "<select id='page_" + e.id + "'>" + opts + "</select>"
+      html += "<input type='file' id='fichier_" + e.id + "' accept='image/*'>"
+      html += "<button onclick='deposerDessin(" + e.id + ")'>Déposer ce dessin</button>"
+      html += "<div class='msg' id='msgDepot_" + e.id + "'></div></div>"
+    }
+  } else {
+    html += "<p><small>Limite de " + maxDessins + " dessins atteinte.</small></p>"
+  }
+  html += "</div>"
+  return html
+}
+
 async function chargerEnfants() {
   try {
     const r = await fetch(supabaseUrl + "/functions/v1/liste-enfants", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
     const result = await r.json()
     if (result.code === "AUTH") { sessionExpiree(); return }
     if (!result.success) { document.getElementById("listeEnfants").textContent = "Erreur : " + (result.message || "chargement impossible"); return }
-
     document.getElementById("info").innerHTML = "<b>Connecté :</b> " + email
     const enfants = result.enfants || []
     const zone = document.getElementById("listeEnfants")
     if (enfants.length === 0) { zone.textContent = "Aucun enfant inscrit pour le moment."; return }
     let html = ""
-    enfants.forEach(function(e){ html += "<div class='enfant'><b>" + e.prenom_enfant + "</b> (" + e.age_enfant + " ans)</div>" })
+    enfants.forEach(function(e){ html += rendreEnfant(e) })
     zone.innerHTML = html
   } catch (err) {
     document.getElementById("listeEnfants").textContent = "Erreur réseau : " + err.message
+  }
+}
+
+async function deposerDessin(participantId) {
+  const page = document.getElementById("page_" + participantId).value
+  const fichier = document.getElementById("fichier_" + participantId).files[0]
+  const msg = document.getElementById("msgDepot_" + participantId)
+  if (!fichier) { msg.textContent = "Choisis ou prends une photo d'abord."; return }
+  msg.textContent = "Envoi de l'image…"
+  try {
+    const imageBase64 = await compresserImage(fichier)
+    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-dessin", {
+      method: "POST", headers: enTetes,
+      body: JSON.stringify({ email: email, code: code, participant_id: participantId, page: page, image_base64: imageBase64 })
+    })
+    const result = await r.json()
+    if (result.code === "AUTH") { sessionExpiree(); return }
+    if (!result.success) { msg.textContent = "❌ " + (result.message || "Erreur"); return }
+    msg.textContent = "✅ Dessin déposé."
+    chargerEnfants()
+  } catch (err) {
+    msg.textContent = "Erreur : " + err.message
   }
 }
 
@@ -88,8 +185,9 @@ async function ajouterEnfant() {
   }
 }
 
+window.deposerDessin = deposerDessin
 document.getElementById("btnAjouter").addEventListener("click", ajouterEnfant)
-chargerEnfants()
+chargerConfig().then(chargerEnfants)
 </script>
 </body>
 </html>
