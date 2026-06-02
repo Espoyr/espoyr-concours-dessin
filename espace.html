@@ -39,8 +39,9 @@ small { color:#666; }
 
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
-const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
-const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
+const supabaseAnonKey = "COLLE_ICI_TA_CLE_ANON"
+const enTetesJson = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
+const enTetesFichier = { "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
 
 const email = localStorage.getItem("espoyr_email_parent")
 const code = localStorage.getItem("espoyr_code")
@@ -80,12 +81,15 @@ function compresserImage(file) {
         const canvas = document.createElement("canvas")
         canvas.width = w; canvas.height = h
         canvas.getContext("2d").drawImage(img, 0, 0, w, h)
-        resolve(canvas.toDataURL("image/jpeg", 0.8))
+        canvas.toBlob(function(blob){
+          if (blob) resolve(blob)
+          else reject(new Error("Conversion impossible"))
+        }, "image/jpeg", 0.8)
       }
-      img.onerror = reject
+      img.onerror = function(){ reject(new Error("Image illisible. Utilise une photo JPG ou PNG (pas de .xcf).")) }
       img.src = reader.result
     }
-    reader.onerror = reject
+    reader.onerror = function(){ reject(new Error("Lecture du fichier impossible.")) }
     reader.readAsDataURL(file)
   })
 }
@@ -102,7 +106,7 @@ function rendreEnfant(e) {
   let html = "<div class='enfant'>"
   html += "<b>" + e.prenom_enfant + "</b> (" + e.age_enfant + " ans) — " + dessins.length + "/" + maxDessins + " dessins"
   dessins.forEach(function(d){
-    html += "<div class='dessin'><img src='" + d.image_url + "' alt=''><span>Page " + d.page + "</span> " + badgeStatut(d.statut) + "</div>"
+    html += "<div class='dessin'><a href='" + d.image_url + "' target='_blank'><img src='" + d.image_url + "' alt=''></a><span>Page " + d.page + "</span> " + badgeStatut(d.statut) + "</div>"
   })
   if (dessins.length < maxDessins) {
     let opts = ""
@@ -115,7 +119,7 @@ function rendreEnfant(e) {
       html += "<div class='depot'><p><b>Ajouter un dessin</b></p>"
       html += "<label>Page :</label><select id='page_" + e.id + "'>" + opts + "</select>"
       html += "<p style='margin-top:10px;'>📷 Prendre une photo :<br><input type='file' accept='image/*' capture='environment' id='photo_" + e.id + "'></p>"
-      html += "<p>🖼️ ou choisir une image existante :<br><input type='file' accept='image/*' id='galerie_" + e.id + "'></p>"
+      html += "<p>🖼️ ou choisir une image (JPG/PNG) :<br><input type='file' accept='image/*' id='galerie_" + e.id + "'></p>"
       html += "<button onclick='deposerDessin(" + e.id + ")'>Déposer ce dessin</button>"
       html += "<div class='msg' id='msgDepot_" + e.id + "'></div></div>"
     }
@@ -128,7 +132,7 @@ function rendreEnfant(e) {
 
 async function chargerEnfants() {
   try {
-    const r = await fetch(supabaseUrl + "/functions/v1/liste-enfants", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
+    const r = await fetch(supabaseUrl + "/functions/v1/liste-enfants", { method: "POST", headers: enTetesJson, body: JSON.stringify({ email: email, code: code }) })
     const result = await r.json()
     if (result.code === "AUTH") { sessionExpiree(); return }
     if (!result.success) { document.getElementById("listeEnfants").textContent = "Erreur : " + (result.message || "chargement impossible"); return }
@@ -153,20 +157,24 @@ async function deposerDessin(participantId) {
   if (inputPhoto && inputPhoto.files[0]) fichier = inputPhoto.files[0]
   else if (inputGalerie && inputGalerie.files[0]) fichier = inputGalerie.files[0]
   if (!fichier) { msg.textContent = "Prends une photo ou choisis une image d'abord."; return }
-  msg.textContent = "Envoi de l'image…"
+  msg.textContent = "Préparation de l'image…"
   try {
-    const imageBase64 = await compresserImage(fichier)
-    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-dessin", {
-      method: "POST", headers: enTetes,
-      body: JSON.stringify({ email: email, code: code, participant_id: participantId, page: page, image_base64: imageBase64 })
-    })
+    const blob = await compresserImage(fichier)
+    msg.textContent = "Envoi…"
+    const formData = new FormData()
+    formData.append("email", email)
+    formData.append("code", code)
+    formData.append("participant_id", participantId)
+    formData.append("page", page)
+    formData.append("image", blob, "dessin.jpg")
+    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-dessin", { method: "POST", headers: enTetesFichier, body: formData })
     const result = await r.json()
     if (result.code === "AUTH") { sessionExpiree(); return }
-    if (!result.success) { msg.textContent = "❌ " + (result.message || "Erreur"); return }
+    if (!result.ok) { msg.textContent = "❌ " + (result.erreur || "Erreur"); return }
     msg.textContent = "✅ Dessin déposé."
     chargerEnfants()
   } catch (err) {
-    msg.textContent = "Erreur : " + err.message
+    msg.textContent = "❌ " + err.message
   }
 }
 
@@ -177,7 +185,7 @@ async function ajouterEnfant() {
   const msg = document.getElementById("messageAjout")
   msg.textContent = "Envoi…"
   try {
-    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-enfant", { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code, prenom: prenom, age: age, nom_parent: nomParent }) })
+    const r = await fetch(supabaseUrl + "/functions/v1/ajouter-enfant", { method: "POST", headers: enTetesJson, body: JSON.stringify({ email: email, code: code, prenom: prenom, age: age, nom_parent: nomParent }) })
     const result = await r.json()
     if (result.code === "AUTH") { sessionExpiree(); return }
     if (!result.success) { msg.textContent = "❌ " + (result.message || "Erreur"); return }
