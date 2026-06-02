@@ -4,119 +4,85 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Concours de dessin Espoyr</title>
-
   <style>
-    body{
-      font-family: Arial, sans-serif;
-      background:#f4f4f4;
-      margin:0;
-      padding:0;
-      color:#222;
-    }
-
-    header{
-      background:#2d6a4f;
-      color:white;
-      text-align:center;
-      padding:40px 20px;
-    }
-
-    header h1{
-      font-size:3em;
-      margin:0;
-    }
-
-    header p{
-      font-size:1.2em;
-      margin-top:10px;
-    }
-
-    .container{
-      max-width:1000px;
-      margin:auto;
-      padding:20px;
-    }
-
-    .card{
-      background:white;
-      border-radius:12px;
-      padding:25px;
-      margin-bottom:20px;
-      box-shadow:0 2px 8px rgba(0,0,0,0.1);
-    }
-
-    h2{
-      color:#2d6a4f;
-    }
-
-    .btn{
-      display:inline-block;
-      background:#ff9800;
-      color:white;
-      padding:12px 20px;
-      border-radius:8px;
-      text-decoration:none;
-      font-weight:bold;
-      margin-top:10px;
-    }
-
-    footer{
-      text-align:center;
-      padding:30px;
-      background:#2d6a4f;
-      color:white;
-      margin-top:40px;
-    }
+    body{ font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; color:#222; }
+    header{ background:#2d6a4f; color:white; text-align:center; padding:40px 20px; }
+    header h1{ font-size:3em; margin:0; }
+    header p{ font-size:1.2em; margin-top:10px; }
+    .container{ max-width:1000px; margin:auto; padding:20px; }
+    .card{ background:white; border-radius:12px; padding:25px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+    h2{ color:#2d6a4f; }
+    .btn{ display:inline-block; background:#ff9800; color:white; padding:12px 20px; border-radius:8px; text-decoration:none; font-weight:bold; margin-top:10px; }
+    footer{ text-align:center; padding:30px; background:#2d6a4f; color:white; margin-top:40px; }
   </style>
 </head>
-
 <body>
-
 <header>
   <h1>Concours de dessin Espoyr</h1>
   <p>Illustrons ensemble un livre pour enfants et adultes</p>
 </header>
-
 <div class="container">
-
   <div class="card">
     <h2>✏️ Le projet</h2>
-    <p>
-      Propose ton dessin pour illustrer un livre collectif publié
-      pour les fêtes de fin d’année.
-    </p>
-
-    <p>
-      Tous les styles sont acceptés :
-      crayons, peinture, numérique, aquarelle…
-    </p>
+    <p>Propose ton dessin pour illustrer un livre collectif publié pour les fêtes de fin d'année.</p>
+    <p>Tous les styles sont acceptés : crayons, peinture, numérique, aquarelle…</p>
   </div>
-
   <div class="card">
     <h2>📅 Dates importantes</h2>
-
-    <p><strong>Date limite :</strong> 15 septembre 2026</p>
-    <p><strong>Vote :</strong> 26 novembre 2026</p>
-    <p><strong>Résultats :</strong> 27 novembre 2026 à 16h</p>
+    <p><strong>Date limite de dépôt :</strong> <span id="dateDepot">…</span></p>
+    <p><strong>Vote :</strong> <span id="dateVote">…</span></p>
+    <p><strong>Résultats :</strong> <span id="dateResultats">…</span></p>
   </div>
-
   <div class="card">
     <h2>📬 Participer</h2>
-
-    <p>
-      Les dessins peuvent être envoyés directement depuis l’application.
-    </p>
-
-    <a class="btn" href="upload.html">
-      Envoyer mon dessin
-    </a>
+    <p>Les dessins peuvent être envoyés directement depuis l'application.</p>
+    <a class="btn" href="upload.html">Envoyer mon dessin</a>
   </div>
-
 </div>
-
 <footer>
   Ensemble, donnons vie à une belle histoire ✨
 </footer>
 
+<script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"   // la meme cle eyJ... que dans upload.html
+
+async function chargerDates() {
+  try {
+    const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", {
+      headers: {
+        apikey: supabaseAnonKey,
+        Authorization: "Bearer " + supabaseAnonKey
+      }
+    })
+    const lignes = await r.json()
+
+    const p = {}
+    lignes.forEach(function(l){ p[l.cle] = l.valeur })
+
+    const optDate = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric" }
+    const optDateHeure = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
+
+    if (p.date_limite_depot) {
+      document.getElementById("dateDepot").textContent =
+        new Date(p.date_limite_depot).toLocaleDateString("fr-BE", optDate)
+    }
+    if (p.date_ouverture_vote) {
+      document.getElementById("dateVote").textContent =
+        new Date(p.date_ouverture_vote).toLocaleDateString("fr-BE", optDate)
+    }
+    if (p.date_resultats) {
+      document.getElementById("dateResultats").textContent =
+        new Date(p.date_resultats).toLocaleString("fr-BE", optDateHeure)
+    }
+  } catch (e) {
+    console.error("Impossible de charger les dates :", e)
+    document.getElementById("dateDepot").textContent = "voir l'application"
+    document.getElementById("dateVote").textContent = "voir l'application"
+    document.getElementById("dateResultats").textContent = "voir l'application"
+  }
+}
+chargerDates()
+</script>
 </body>
 </html>
