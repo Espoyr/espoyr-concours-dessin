@@ -16,9 +16,9 @@
     footer{ text-align:center; padding:30px; background:#2d6a4f; color:white; margin-top:40px; }
     .dates-flex{ display:flex; gap:20px; align-items:stretch; flex-wrap:wrap; }
     .dates-liste{ flex:1; min-width:240px; }
-    .dates-compte{ background:#ff9800; color:white; border-radius:10px; padding:20px; min-width:170px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
-    #compteNombre{ font-size:4em; font-weight:bold; line-height:1; }
-    #compteLabel{ margin-top:8px; font-size:1em; }
+    .dates-compte{ background:#ff9800; border-radius:10px; padding:20px; min-width:190px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
+    #compteNombre{ font-size:2.6em; font-weight:bold; line-height:1; color:white; white-space:nowrap; }
+    #compteLabel{ margin-top:10px; font-size:1em; color:#000; font-weight:bold; text-transform:uppercase; }
   </style>
 </head>
 <body>
@@ -72,26 +72,29 @@
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
 let nombrePages = 10
+let dureeDepotJours = 25
 
-function majDecompte(dateDepot) {
+function majDecompte(dateDepot, total) {
   const elNombre = document.getElementById("compteNombre")
   const elLabel = document.getElementById("compteLabel")
   const bloc = document.getElementById("compteBloc")
+  const dureeTotale = (total && total > 0) ? total : 25
   if (!dateDepot) { elNombre.textContent = "?"; elLabel.textContent = ""; return }
   const limite = new Date(dateDepot).getTime()
-  if (isNaN(limite)) { elNombre.style.fontSize = "1.6em"; elNombre.textContent = "?"; elLabel.textContent = "date à corriger"; return }
+  if (isNaN(limite)) { elNombre.style.fontSize = "1.6em"; elNombre.textContent = "?"; elLabel.textContent = "DATE À CORRIGER"; return }
   const maintenant = Date.now()
   const msParJour = 1000 * 60 * 60 * 24
-  if (maintenant < limite) {
-    const jours = Math.ceil((limite - maintenant) / msParJour)
-    elNombre.textContent = jours
-    elLabel.textContent = jours > 1 ? "jours pour déposer" : "jour pour déposer"
-  } else {
+  if (maintenant >= limite) {
     elNombre.style.fontSize = "1.8em"
     elNombre.textContent = "Clôturé"
-    elLabel.textContent = "dépôts terminés"
+    elLabel.textContent = "DÉPÔTS TERMINÉS"
     bloc.style.background = "#888"
+    return
   }
+  let restants = Math.ceil((limite - maintenant) / msParJour)
+  if (restants > dureeTotale) restants = dureeTotale
+  elNombre.textContent = restants + " / " + dureeTotale
+  elLabel.textContent = "JOURS RESTANTS"
 }
 
 async function chargerParametres() {
@@ -103,6 +106,7 @@ async function chargerParametres() {
     const p = {}
     lignes.forEach(function(l){ p[l.cle] = l.valeur })
     if (p.nombre_pages) nombrePages = parseInt(p.nombre_pages, 10)
+    if (p.duree_depot_jours) dureeDepotJours = parseInt(p.duree_depot_jours, 10)
 
     const optDate = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric" }
     const optDateHeure = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
@@ -113,7 +117,7 @@ async function chargerParametres() {
     if (p.date_resultats) document.getElementById("dateResultats").textContent = new Date(p.date_resultats).toLocaleString("fr-BE", optDateHeure)
     if (p.nombre_max_dessins_par_enfant) document.getElementById("maxDessins").textContent = p.nombre_max_dessins_par_enfant
 
-    majDecompte(p.date_limite_depot)
+    majDecompte(p.date_limite_depot, dureeDepotJours)
   } catch (e) { console.error("Parametres :", e) }
 }
 
