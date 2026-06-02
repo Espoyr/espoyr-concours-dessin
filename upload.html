@@ -2,13 +2,15 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Connexion concours Espoyr</title>
 <style>
-body { font-family: Arial; max-width: 900px; margin: 30px auto; }
-input, button { padding: 10px; margin-top: 5px; width: 100%; }
+body { font-family: Arial; max-width: 900px; margin: 30px auto; padding:0 15px; }
+input, button { padding: 10px; margin-top: 5px; width: 100%; box-sizing:border-box; }
 button { background: #2d6a4f; color: white; border: 0; cursor: pointer; }
 pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
 .box { border: 1px solid #ccc; padding: 20px; margin: 20px 0; }
+.info { background:#eef6f1; border-left:4px solid #2d6a4f; padding:10px 14px; margin-top:12px; font-size:0.9em; }
 </style>
 </head>
 <body>
@@ -19,6 +21,7 @@ pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
 <p>Email du parent<br><input type="email" id="emailDemande" required></p>
 <button type="submit">Recevoir mon code</button>
 </form>
+<div class="info">ℹ️ À chaque demande, un nouveau code est généré et envoyé par email. Le code précédent cesse aussitôt d'être valable. Pour le contrôle parental, c'est toujours le parent qui déclenche l'envoi.</div>
 </div>
 <div class="box">
 <h2>2. Me connecter avec mon code</h2>
@@ -34,38 +37,22 @@ pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
 </div>
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
-
-// >>> COLLE ICI TA CLE ANON (Settings > API > Project API keys > anon public) <
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
-
+const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
 const envoyerCodeUrl = supabaseUrl + "/functions/v1/envoyer-code"
 const verifierCodeUrl = supabaseUrl + "/functions/v1/verifier-code"
 
-// En-tetes communs aux deux appels : la cle anon debloque la passerelle Supabase
-const enTetes = {
-  "Content-Type": "application/json",
-  "apikey": supabaseAnonKey,
-  "Authorization": "Bearer " + supabaseAnonKey
-}
-
 function bloc(titre, contenu) {
-  return "<h3>" + titre + "</h3><pre>" +
-    JSON.stringify(contenu, null, 2) +
-    "</pre>"
+  return "<h3>" + titre + "</h3><pre>" + JSON.stringify(contenu, null, 2) + "</pre>"
 }
 
 document.getElementById("demandeCodeForm").addEventListener("submit", async function(e) {
   e.preventDefault()
   const email = document.getElementById("emailDemande").value.trim().toLowerCase()
   const message = document.getElementById("message")
-  const donneesEnvoyees = { email: email }
-  message.innerHTML = bloc("1. Valeurs envoyées à envoyer-code", donneesEnvoyees)
+  message.innerHTML = bloc("1. Valeurs envoyées à envoyer-code", { email: email })
   try {
-    const response = await fetch(envoyerCodeUrl, {
-      method: "POST",
-      headers: enTetes,
-      body: JSON.stringify(donneesEnvoyees)
-    })
+    const response = await fetch(envoyerCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email }) })
     const result = await response.json()
     message.innerHTML += bloc("2. Réponse reçue de envoyer-code", result)
     if (response.ok && result.success !== false) {
@@ -84,21 +71,14 @@ document.getElementById("connexionForm").addEventListener("submit", async functi
   const email = document.getElementById("emailConnexion").value.trim().toLowerCase()
   const code = document.getElementById("codeConnexion").value.trim()
   const message = document.getElementById("message")
-  const donneesEnvoyees = {
-    email: email,
-    code: code
-  }
-  message.innerHTML = bloc("1. Valeurs envoyées à verifier-code", donneesEnvoyees)
+  message.innerHTML = bloc("1. Valeurs envoyées à verifier-code", { email: email, code: code })
   try {
-    const response = await fetch(verifierCodeUrl, {
-      method: "POST",
-      headers: enTetes,
-      body: JSON.stringify(donneesEnvoyees)
-    })
+    const response = await fetch(verifierCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
     const result = await response.json()
     message.innerHTML += bloc("2. Réponse reçue de verifier-code", result)
     if (result.comparaison === true || result.ok === true) {
       localStorage.setItem("espoyr_email_parent", email)
+      localStorage.setItem("espoyr_code", code)
       message.innerHTML += "<p><strong>Connexion réussie ✅</strong></p>"
       message.innerHTML += "<p><a href='espace.html'>Aller à mon espace participant</a></p>"
     } else {
