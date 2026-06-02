@@ -26,11 +26,13 @@
     <h2>✏️ Le projet</h2>
     <p>Propose ton dessin pour illustrer un livre collectif publié pour les fêtes de fin d'année.</p>
     <p>Tous les styles sont acceptés : crayons, peinture, numérique, aquarelle…</p>
+    <p><strong>Chaque enfant peut déposer jusqu'à <span id="maxDessins">…</span> dessins.</strong></p>
   </div>
   <div class="card">
     <h2>📅 Dates importantes</h2>
     <p><strong>Date limite de dépôt :</strong> <span id="dateDepot">…</span></p>
-    <p><strong>Vote :</strong> <span id="dateVote">…</span></p>
+    <p><strong>Ouverture du vote :</strong> <span id="dateOuvertureVote">…</span></p>
+    <p><strong>Clôture du vote :</strong> <span id="dateFermetureVote">…</span></p>
     <p><strong>Résultats :</strong> <span id="dateResultats">…</span></p>
   </div>
   <div class="card">
@@ -47,7 +49,7 @@
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"   // la meme cle eyJ... que dans upload.html
 
-async function chargerDates() {
+async function chargerParametres() {
   try {
     const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", {
       headers: {
@@ -63,26 +65,30 @@ async function chargerDates() {
     const optDate = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric" }
     const optDateHeure = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
 
-    if (p.date_limite_depot) {
+    if (p.date_limite_depot)
       document.getElementById("dateDepot").textContent =
         new Date(p.date_limite_depot).toLocaleDateString("fr-BE", optDate)
-    }
-    if (p.date_ouverture_vote) {
-      document.getElementById("dateVote").textContent =
+
+    if (p.date_ouverture_vote)
+      document.getElementById("dateOuvertureVote").textContent =
         new Date(p.date_ouverture_vote).toLocaleDateString("fr-BE", optDate)
-    }
-    if (p.date_resultats) {
+
+    if (p.date_fermeture_vote)
+      document.getElementById("dateFermetureVote").textContent =
+        new Date(p.date_fermeture_vote).toLocaleString("fr-BE", optDateHeure)
+
+    if (p.date_resultats)
       document.getElementById("dateResultats").textContent =
         new Date(p.date_resultats).toLocaleString("fr-BE", optDateHeure)
-    }
+
+    if (p.nombre_max_dessins_par_enfant)
+      document.getElementById("maxDessins").textContent = p.nombre_max_dessins_par_enfant
+
   } catch (e) {
-    console.error("Impossible de charger les dates :", e)
-    document.getElementById("dateDepot").textContent = "voir l'application"
-    document.getElementById("dateVote").textContent = "voir l'application"
-    document.getElementById("dateResultats").textContent = "voir l'application"
+    console.error("Impossible de charger les parametres :", e)
   }
 }
-chargerDates()
+chargerParametres()
 </script>
 </body>
 </html>
