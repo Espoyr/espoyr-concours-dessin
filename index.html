@@ -28,6 +28,15 @@
     <p>Tous les styles sont acceptés : crayons, peinture, numérique, aquarelle…</p>
     <p><strong>Chaque enfant peut déposer jusqu'à <span id="maxDessins">…</span> dessins.</strong></p>
   </div>
+
+  <div class="card">
+    <h2>🎨 Participation en direct</h2>
+    <p style="font-size:1.3em;"><strong><span id="statTotal">…</span></strong> dessins déjà déposés !</p>
+    <p>Par page du livre :</p>
+    <div id="statParPage">…</div>
+    <p style="margin-top:10px;"><small>Une page a encore peu de dessins ? C'est le moment d'y participer 😊</small></p>
+  </div>
+
   <div class="card">
     <h2>📅 Dates importantes</h2>
     <p><strong>Date limite de dépôt :</strong> <span id="dateDepot">…</span></p>
@@ -35,6 +44,7 @@
     <p><strong>Clôture du vote :</strong> <span id="dateFermetureVote">…</span></p>
     <p><strong>Résultats :</strong> <span id="dateResultats">…</span></p>
   </div>
+
   <div class="card">
     <h2>📬 Participer</h2>
     <p>Les dessins peuvent être envoyés directement depuis l'application.</p>
@@ -47,6 +57,7 @@
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
+let nombrePages = 10
 
 async function chargerParametres() {
   try {
@@ -56,6 +67,7 @@ async function chargerParametres() {
     const lignes = await r.json()
     const p = {}
     lignes.forEach(function(l){ p[l.cle] = l.valeur })
+    if (p.nombre_pages) nombrePages = parseInt(p.nombre_pages, 10)
 
     const optDate = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric" }
     const optDateHeure = { timeZone: "Europe/Brussels", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }
@@ -67,7 +79,27 @@ async function chargerParametres() {
     if (p.nombre_max_dessins_par_enfant) document.getElementById("maxDessins").textContent = p.nombre_max_dessins_par_enfant
   } catch (e) { console.error("Parametres :", e) }
 }
-chargerParametres()
+
+async function chargerStats() {
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/stats-publiques", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey },
+      body: "{}"
+    })
+    const result = await r.json()
+    if (!result.ok) return
+    document.getElementById("statTotal").textContent = result.total
+    const parPage = result.parPage || {}
+    let html = ""
+    for (let p = 1; p <= nombrePages; p++) {
+      html += "<span style='display:inline-block;margin:4px 12px 4px 0;'>Page " + p + " : <b>" + (parPage[p] || 0) + "</b></span>"
+    }
+    document.getElementById("statParPage").innerHTML = html
+  } catch (e) { console.error("Stats :", e) }
+}
+
+chargerParametres().then(chargerStats)
 </script>
 </body>
 </html>
