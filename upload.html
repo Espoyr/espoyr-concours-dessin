@@ -3,44 +3,50 @@
 <head>
 <meta charset="UTF-8">
 <title>Connexion concours Espoyr</title>
+<style>
+body { font-family: Arial; max-width: 900px; margin: 30px auto; }
+input, button { padding: 10px; margin-top: 5px; width: 100%; }
+button { background: #2d6a4f; color: white; border: 0; cursor: pointer; }
+pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
+.box { border: 1px solid #ccc; padding: 20px; margin: 20px 0; }
+</style>
 </head>
 <body>
 
 <h1>Concours de dessin Espoyr</h1>
 
+<div class="box">
 <h2>1. Recevoir mon code</h2>
-
 <form id="demandeCodeForm">
-  <p>Email du parent<br>
-    <input type="email" id="emailDemande" required>
-  </p>
-  <button type="submit">Recevoir mon code</button>
+<p>Email du parent<br><input type="email" id="emailDemande" required></p>
+<button type="submit">Recevoir mon code</button>
 </form>
+</div>
 
-<hr>
-
+<div class="box">
 <h2>2. Me connecter avec mon code</h2>
-
 <form id="connexionForm">
-  <p>Email du parent<br>
-    <input type="email" id="emailConnexion" required>
-  </p>
-
-  <p>Code reçu par email<br>
-    <input type="text" id="codeConnexion" required>
-  </p>
-
-  <button type="submit">Me connecter</button>
+<p>Email du parent<br><input type="email" id="emailConnexion" required></p>
+<p>Code reçu par email<br><input type="text" id="codeConnexion" required></p>
+<button type="submit">Me connecter</button>
 </form>
+</div>
 
-<hr>
-
-<div id="message"></div>
+<div class="box">
+<h2>Diagnostic</h2>
+<div id="message">Aucune action pour le moment.</div>
+</div>
 
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 const envoyerCodeUrl = supabaseUrl + "/functions/v1/envoyer-code"
 const verifierCodeUrl = supabaseUrl + "/functions/v1/verifier-code"
+
+function bloc(titre, contenu) {
+  return "<h3>" + titre + "</h3><pre>" +
+    JSON.stringify(contenu, null, 2) +
+    "</pre>"
+}
 
 document.getElementById("demandeCodeForm").addEventListener("submit", async function(e) {
   e.preventDefault()
@@ -48,41 +54,30 @@ document.getElementById("demandeCodeForm").addEventListener("submit", async func
   const email = document.getElementById("emailDemande").value.trim().toLowerCase()
   const message = document.getElementById("message")
 
-  message.innerHTML =
-    "<h3>Demande de code</h3>" +
-    "<pre>" + JSON.stringify({ email_envoye: email }, null, 2) + "</pre>"
+  const donneesEnvoyees = { email: email }
+
+  message.innerHTML = bloc("1. Valeurs envoyées à envoyer-code", donneesEnvoyees)
 
   try {
     const response = await fetch(envoyerCodeUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: email
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(donneesEnvoyees)
     })
 
     const result = await response.json()
 
-    message.innerHTML +=
-      "<h3>Réponse de envoyer-code</h3>" +
-      "<pre>" + JSON.stringify(result, null, 2) + "</pre>"
+    message.innerHTML += bloc("2. Réponse reçue de envoyer-code", result)
 
-    if (!response.ok || result.success === false) {
-      message.innerHTML += "<p>Erreur lors de l’envoi du code.</p>"
-      return
+    if (response.ok && result.success !== false) {
+      document.getElementById("emailConnexion").value = email
+      message.innerHTML += "<p><strong>Code envoyé ✅</strong></p>"
+    } else {
+      message.innerHTML += "<p><strong>Erreur envoi code ❌</strong></p>"
     }
 
-    document.getElementById("emailConnexion").value = email
-
-    message.innerHTML +=
-      "<p>Un code vient d’être envoyé à : <strong>" + email + "</strong></p>"
-
   } catch (error) {
-    message.innerHTML +=
-      "<h3>Erreur réseau envoyer-code</h3>" +
-      "<pre>" + error.message + "</pre>"
+    message.innerHTML += bloc("Erreur réseau envoyer-code", { erreur: error.message })
   }
 })
 
@@ -93,46 +88,34 @@ document.getElementById("connexionForm").addEventListener("submit", async functi
   const code = document.getElementById("codeConnexion").value.trim()
   const message = document.getElementById("message")
 
-  message.innerHTML =
-    "<h3>Valeurs envoyées à verifier-code</h3>" +
-    "<pre>" + JSON.stringify({
-      email_envoye: email,
-      code_envoye: code
-    }, null, 2) + "</pre>"
+  const donneesEnvoyees = {
+    email: email,
+    code: code
+  }
+
+  message.innerHTML = bloc("1. Valeurs envoyées à verifier-code", donneesEnvoyees)
 
   try {
     const response = await fetch(verifierCodeUrl, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        email: email,
-        code: code
-      })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(donneesEnvoyees)
     })
 
     const result = await response.json()
 
-    message.innerHTML +=
-      "<h3>Réponse de verifier-code</h3>" +
-      "<pre>" + JSON.stringify(result, null, 2) + "</pre>"
+    message.innerHTML += bloc("2. Réponse reçue de verifier-code", result)
 
     if (result.comparaison === true || result.ok === true) {
       localStorage.setItem("espoyr_email_parent", email)
-
-      message.innerHTML +=
-        "<p><strong>Connexion réussie ✅</strong></p>" +
-        "<p><a href='espace.html'>Aller à mon espace participant</a></p>"
+      message.innerHTML += "<p><strong>Connexion réussie ✅</strong></p>"
+      message.innerHTML += "<p><a href='espace.html'>Aller à mon espace participant</a></p>"
     } else {
-      message.innerHTML +=
-        "<p><strong>Connexion refusée ❌</strong></p>"
+      message.innerHTML += "<p><strong>Connexion refusée ❌</strong></p>"
     }
 
   } catch (error) {
-    message.innerHTML +=
-      "<h3>Erreur réseau verifier-code</h3>" +
-      "<pre>" + error.message + "</pre>"
+    message.innerHTML += bloc("Erreur réseau verifier-code", { erreur: error.message })
   }
 })
 </script>
