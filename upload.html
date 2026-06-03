@@ -96,7 +96,7 @@ async function demanderCode() {
     if (!result.success) { msg.textContent = "❌ " + (result.error || "Erreur."); return }
     if (result.existe) {
       // pre-cocher la case selon le consentement deja enregistre (evite un retrait accidentel)
-      document.getElementById("consent").checked = (result.consent === true)
+      
       msg.textContent = ""
       choix.style.display = "block"
       document.getElementById("emailConnexion").value = email
