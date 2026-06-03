@@ -181,7 +181,7 @@ async function deposerDessin(participantId) {
     })
     const result = await r.json()
     if (result.code === "AUTH") { sessionExpiree(); return }
-    if (!result.success) { msg.textContent = "❌ " + (result.message || "Erreur"); return }
+    if (!result.success) { console.log("ajouter-dessin", r.status, result); msg.textContent = "❌ " + (result.message || result.error || ("Erreur — code " + r.status)); return }
     msg.textContent = "✅ Dessin reçu."
     chargerEnfants()
   } catch (err) {
