@@ -185,11 +185,11 @@ function afficherVotePage(){
   let pg=null
   for(let i=0;i<pages.length;i++){ if(pages[i].page===numPage){ pg=pages[i]; break } }
   selection=null
- 
-   let html = "<div class='bandeau'>Vote "+(bIndex+1)+" sur "+bulletins.length+" — "+b.label+"<br>Page "+(pIndex+1)+" sur "+pageList.length+"</div>"
-  
+  let html = "<div class='bandeau'>Vote "+(bIndex+1)+" sur "+bulletins.length+" — "+b.label+"<br>Page "+(pIndex+1)+" sur "+pageList.length+"</div>"
   html += "<div class='pageBloc'><h3>Choisis le dessin préféré pour la page "+numPage+"</h3><div class='galerie'>"
-  pg.dessins.forEach(function(d){
+  const dessinsMel = pg.dessins.slice()
+  melanger(dessinsMel)
+  dessinsMel.forEach(function(d){
     const estTien = (b.type==="enfant" && d.participant_id===b.participant_id)
     if(estTien){
       html += "<div class='choix bloque'><img src='"+d.image_url+"' alt=''><div class='tienMsg'>C'est ton dessin,<br>tu ne peux pas voter pour toi</div></div>"
