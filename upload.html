@@ -3,38 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Connexion concours Espoyr</title>
+<title>Connexion - Concours de dessin Espoyr #</title>
 <style>
-body { font-family: Arial; max-width: 900px; margin: 30px auto; padding:0 15px; }
-input, button { padding: 10px; margin-top: 5px; width: 100%; box-sizing:border-box; }
-button { background: #2d6a4f; color: white; border: 0; cursor: pointer; }
-pre { background: #f1f1f1; padding: 15px; white-space: pre-wrap; }
-.box { border: 1px solid #ccc; padding: 20px; margin: 20px 0; }
+body { font-family: Arial, sans-serif; max-width: 760px; margin: 30px auto; padding:0 15px; color:#222; }
+h1, h2 { color:#2d6a4f; }
+input, button { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
+button { background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; margin-top:12px; }
+button.secondaire { background:#eee; color:#222; }
+button.danger { background:#b00020; color:white; }
+.box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
 .info { background:#eef6f1; border-left:4px solid #2d6a4f; padding:10px 14px; margin-top:12px; font-size:0.9em; }
+.consent { margin-top:14px; font-size:0.92em; background:#f7f7f7; padding:10px 12px; border-radius:6px; }
+.consent input { width:auto; margin-right:8px; }
+.consent label { display:flex; align-items:flex-start; gap:4px; }
+.msg { margin-top:12px; }
+#choix { margin-top:14px; padding:12px; background:#fff8e1; border:1px solid #ffd54f; border-radius:6px; }
+small { color:#666; }
 </style>
 </head>
 <body>
 <h1>Concours de dessin Espoyr</h1>
+
 <div class="box">
 <h2>1. Recevoir mon code</h2>
-<form id="demandeCodeForm">
-<p>Email du parent<br><input type="email" id="emailDemande" required></p>
-<button type="submit">Recevoir mon code</button>
-</form>
-<div class="info">ℹ️ À chaque demande, un nouveau code est généré et envoyé par email. Le code précédent cesse aussitôt d'être valable. Pour le contrôle parental, c'est toujours le parent qui déclenche l'envoi.</div>
+<p>Email<br><input type="email" id="emailDemande"></p>
+
+<div class="consent">
+<label><input type="checkbox" id="consent"> <span>J'accepte que l'ASBL Espoyr réutilise mon adresse email <b>uniquement</b> pour des actions concernant l'évolution du projet participatif communal Espoyr, <b>en dehors du concours de dessin</b>. (facultatif)</span></label>
 </div>
+
+<button id="btnDemande">Recevoir mon code</button>
+
+<div id="choix" style="display:none;">
+  <p><b>Un code existe déjà pour cette adresse.</b> Que veux-tu faire ?</p>
+  <button id="btnRenvoyer" class="secondaire">📧 Renvoyer mon code par email</button>
+  <button id="btnJaiMonCode" class="secondaire">✅ J'ai déjà mon code → l'entrer ci-dessous</button>
+  <button id="btnNouveau" class="danger">🔄 Forcer un nouveau code (l'ancien ne marchera plus)</button>
+  <div id="confirmNouveau" style="display:none; margin-top:10px;">
+    <p><small>⚠️ Es-tu sûr ? Ton ancien code cessera immédiatement de fonctionner.</small></p>
+    <button id="btnNouveauOui" class="danger">Oui, créer un nouveau code</button>
+    <button id="btnNouveauNon" class="secondaire">Annuler</button>
+  </div>
+</div>
+
+<div id="msgCode" class="msg"></div>
+<div class="info">ℹ️ Ton code est <b>personnel et reste le même pendant tout le concours</b> (dépôt des dessins <b>et</b> vote). Tu peux le redemander : c'est toujours le <b>même</b> code qui te sera renvoyé. Garde bien l'email.</div>
+</div>
+
 <div class="box">
 <h2>2. Me connecter avec mon code</h2>
-<form id="connexionForm">
-<p>Email du parent<br><input type="email" id="emailConnexion" required></p>
-<p>Code reçu par email<br><input type="text" id="codeConnexion" required></p>
-<button type="submit">Me connecter</button>
-</form>
+<p>Email<br><input type="email" id="emailConnexion"></p>
+<p>Code reçu par email<br><input type="text" id="codeConnexion"></p>
+<button id="btnConnexion">Me connecter</button>
+<div id="msgConnexion" class="msg"></div>
 </div>
-<div class="box">
-<h2>Diagnostic</h2>
-<div id="message">Aucune action pour le moment.</div>
-</div>
+
 <script>
 const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
 const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
@@ -42,51 +65,81 @@ const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey,
 const envoyerCodeUrl = supabaseUrl + "/functions/v1/envoyer-code"
 const verifierCodeUrl = supabaseUrl + "/functions/v1/verifier-code"
 
-function bloc(titre, contenu) {
-  return "<h3>" + titre + "</h3><pre>" + JSON.stringify(contenu, null, 2) + "</pre>"
+function lireEmailDemande() { return document.getElementById("emailDemande").value.trim().toLowerCase() }
+function lireConsent() { return document.getElementById("consent").checked === true }
+
+async function appelerEnvoi(action) {
+  const email = lireEmailDemande()
+  const msg = document.getElementById("msgCode")
+  if (!email) { msg.textContent = "Entre ton email d'abord."; return }
+  msg.textContent = "Envoi en cours…"
+  try {
+    const r = await fetch(envoyerCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, action: action, consent: lireConsent() }) })
+    const result = await r.json()
+    if (!result.success) { msg.textContent = "❌ " + (result.error || "Erreur lors de l'envoi."); return }
+    document.getElementById("emailConnexion").value = email
+    msg.innerHTML = "✅ Code envoyé à <b>" + email + "</b>. Regarde ta boîte mail (et les indésirables), puis entre-le dans la partie 2 ci-dessous."
+  } catch (e) { msg.textContent = "Erreur réseau : " + e.message }
 }
 
-document.getElementById("demandeCodeForm").addEventListener("submit", async function(e) {
-  e.preventDefault()
-  const email = document.getElementById("emailDemande").value.trim().toLowerCase()
-  const message = document.getElementById("message")
-  message.innerHTML = bloc("1. Valeurs envoyées à envoyer-code", { email: email })
+async function demanderCode() {
+  const email = lireEmailDemande()
+  const msg = document.getElementById("msgCode")
+  const choix = document.getElementById("choix")
+  choix.style.display = "none"
+  document.getElementById("confirmNouveau").style.display = "none"
+  if (!email) { msg.textContent = "Entre ton email d'abord."; return }
+  msg.textContent = "Vérification…"
   try {
-    const response = await fetch(envoyerCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email }) })
-    const result = await response.json()
-    message.innerHTML += bloc("2. Réponse reçue de envoyer-code", result)
-    if (response.ok && result.success !== false) {
+    const r = await fetch(envoyerCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, action: "verifier" }) })
+    const result = await r.json()
+    if (!result.success) { msg.textContent = "❌ " + (result.error || "Erreur."); return }
+    if (result.existe) {
+      // pre-cocher la case selon le consentement deja enregistre (evite un retrait accidentel)
+      document.getElementById("consent").checked = (result.consent === true)
+      msg.textContent = ""
+      choix.style.display = "block"
       document.getElementById("emailConnexion").value = email
-      message.innerHTML += "<p><strong>Code envoyé ✅</strong></p>"
     } else {
-      message.innerHTML += "<p><strong>Erreur envoi code ❌</strong></p>"
+      await appelerEnvoi("envoyer")
     }
-  } catch (error) {
-    message.innerHTML += bloc("Erreur réseau envoyer-code", { erreur: error.message })
-  }
+  } catch (e) { msg.textContent = "Erreur réseau : " + e.message }
+}
+
+document.getElementById("btnDemande").addEventListener("click", demanderCode)
+document.getElementById("btnRenvoyer").addEventListener("click", function(){ document.getElementById("choix").style.display = "none"; appelerEnvoi("envoyer") })
+document.getElementById("btnJaiMonCode").addEventListener("click", function(){
+  document.getElementById("choix").style.display = "none"
+  document.getElementById("msgCode").textContent = ""
+  const champ = document.getElementById("codeConnexion")
+  champ.focus()
+  champ.scrollIntoView({ behavior: "smooth", block: "center" })
+})
+document.getElementById("btnNouveau").addEventListener("click", function(){ document.getElementById("confirmNouveau").style.display = "block" })
+document.getElementById("btnNouveauNon").addEventListener("click", function(){ document.getElementById("confirmNouveau").style.display = "none" })
+document.getElementById("btnNouveauOui").addEventListener("click", function(){
+  document.getElementById("confirmNouveau").style.display = "none"
+  document.getElementById("choix").style.display = "none"
+  appelerEnvoi("nouveau")
 })
 
-document.getElementById("connexionForm").addEventListener("submit", async function(e) {
-  e.preventDefault()
+document.getElementById("btnConnexion").addEventListener("click", async function() {
   const email = document.getElementById("emailConnexion").value.trim().toLowerCase()
   const code = document.getElementById("codeConnexion").value.trim()
-  const message = document.getElementById("message")
-  message.innerHTML = bloc("1. Valeurs envoyées à verifier-code", { email: email, code: code })
+  const msg = document.getElementById("msgConnexion")
+  if (!email || !code) { msg.textContent = "Entre ton email et ton code."; return }
+  msg.textContent = "Connexion…"
   try {
-    const response = await fetch(verifierCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
-    const result = await response.json()
-    message.innerHTML += bloc("2. Réponse reçue de verifier-code", result)
+    const r = await fetch(verifierCodeUrl, { method: "POST", headers: enTetes, body: JSON.stringify({ email: email, code: code }) })
+    const result = await r.json()
     if (result.comparaison === true || result.ok === true) {
       localStorage.setItem("espoyr_email_parent", email)
       localStorage.setItem("espoyr_code", code)
-      message.innerHTML += "<p><strong>Connexion réussie ✅</strong></p>"
-      message.innerHTML += "<p><a href='espace.html'>Aller à mon espace participant</a></p>"
+      location.href = "espace.html"
     } else {
-      message.innerHTML += "<p><strong>Connexion refusée ❌</strong></p>"
+      msg.textContent = "❌ Connexion refusée : code incorrect ou expiré."
     }
-  } catch (error) {
-    message.innerHTML += bloc("Erreur réseau verifier-code", { erreur: error.message })
-  }
+  } catch (e) { msg.textContent = "Erreur réseau : " + e.message }
 })
 </script>
 </body>
