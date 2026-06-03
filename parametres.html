@@ -3,11 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Réglage des dates - Espoyr</title>
+<title>Paramètres généraux - Espoyr</title>
 <style>
-body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding:0 15px; color:#222; }
+body { font-family: Arial, sans-serif; max-width: 760px; margin: 30px auto; padding:0 15px; color:#222; }
 h1, h2 { color:#2d6a4f; }
 label { display:block; margin-top:16px; font-weight:bold; }
+.desc { font-weight:normal; color:#888; font-size:0.85em; }
 input { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
 button { padding:12px; margin-top:20px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; font-size:1em; }
 .box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
@@ -16,7 +17,7 @@ small { color:#666; }
 </style>
 </head>
 <body>
-<h1>📅 Réglage des dates du concours</h1>
+<h1>⚙️ Paramètres généraux du concours</h1>
 
 <div id="connexion" class="box">
 <h2>Accès administrateur</h2>
@@ -25,14 +26,18 @@ small { color:#666; }
 <div id="msgConnexion" class="msg"></div>
 </div>
 
-<div id="appli" class="box" style="display:none;">
-<p><small>Choisis chaque date dans le calendrier (dans l'ordre du concours). L'heure est fixée automatiquement à 23:59:59, heure belge.</small></p>
-<label>Date limite de dépôt des dessins<input type="date" id="d_depot"></label>
-<label>Ouverture du vote<input type="date" id="d_ouverture"></label>
-<label>Clôture du vote<input type="date" id="d_fermeture"></label>
-<label>Annonce des résultats<input type="date" id="d_resultats"></label>
-<label>Envoi des originaux par courrier<input type="date" id="d_original"></label>
-<button id="btnEnregistrer">Enregistrer les dates</button>
+<div id="appli" style="display:none;">
+<div class="box">
+<h2>📅 Dates (calendrier)</h2>
+<p><small>L'heure est fixée automatiquement à 23:59:59, heure belge.</small></p>
+<div id="zoneDates"></div>
+</div>
+<div class="box">
+<h2>🔧 Autres réglages</h2>
+<p><small>Texte libre : garde le bon format (un nombre reste un nombre, « oui »/« non » reste « oui »/« non »).</small></p>
+<div id="zoneAutres"></div>
+</div>
+<button id="btnEnregistrer">Enregistrer tous les paramètres</button>
 <div id="msgEnregistrer" class="msg"></div>
 </div>
 
@@ -43,20 +48,16 @@ const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey,
 
 let motDePasse = localStorage.getItem("espoyr_admin_pwd") || ""
 
-const champs = {
-  date_limite_depot: "d_depot",
-  date_ouverture_vote: "d_ouverture",
-  date_fermeture_vote: "d_fermeture",
-  date_resultats: "d_resultats",
-  date_envoi_original: "d_original"
-}
+const CLES_DATES = ["date_limite_depot", "date_ouverture_vote", "date_fermeture_vote", "date_resultats", "date_envoi_original"]
 
+function echappe(s) {
+  return String(s === null || s === undefined ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;")
+}
 function partieDate(valeur) {
   if (!valeur) return ""
   const t = valeur.indexOf("T")
   return t > 0 ? valeur.substring(0, t) : valeur.substring(0, 10)
 }
-
 function offsetBruxelles(dateStr) {
   const m = dateStr.split("-")
   const y = parseInt(m[0], 10), mo = parseInt(m[1], 10), d = parseInt(m[2], 10)
@@ -70,30 +71,45 @@ function offsetBruxelles(dateStr) {
   } catch (e) { return "+01:00" }
 }
 
-async function chargerDates() {
-  try {
-    const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", { headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey } })
-    const lignes = await r.json()
-    const P = {}
-    lignes.forEach(function(l){ P[l.cle] = l.valeur })
-    for (const cle in champs) {
-      const el = document.getElementById(champs[cle])
-      if (el) el.value = partieDate(P[cle])
-    }
-  } catch (e) { console.error(e) }
+async function chargerParametres() {
+  const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur,description&order=cle.asc", { headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey } })
+  const lignes = await r.json()
+  const map = {}
+  lignes.forEach(function(l){ map[l.cle] = l })
+
+  let hd = ""
+  CLES_DATES.forEach(function(cle){
+    const l = map[cle]
+    if (!l) return
+    const desc = l.description || cle
+    hd += "<label>" + echappe(desc) + "<input type='date' data-cle='" + echappe(cle) + "' data-type='date' value='" + echappe(partieDate(l.valeur)) + "'></label>"
+  })
+  document.getElementById("zoneDates").innerHTML = hd || "<p><small>Aucune date trouvée.</small></p>"
+
+  let ha = ""
+  lignes.forEach(function(l){
+    if (CLES_DATES.indexOf(l.cle) >= 0) return
+    const desc = l.description || l.cle
+    ha += "<label>" + echappe(desc) + " <span class='desc'>(" + echappe(l.cle) + ")</span><input type='text' data-cle='" + echappe(l.cle) + "' data-type='texte' value='" + echappe(l.valeur) + "'></label>"
+  })
+  document.getElementById("zoneAutres").innerHTML = ha || "<p><small>Aucun autre paramètre.</small></p>"
 }
 
 async function enregistrer() {
   const msg = document.getElementById("msgEnregistrer")
-  const dates = {}
-  for (const cle in champs) {
-    const el = document.getElementById(champs[cle])
-    const v = el ? el.value : ""
-    if (v) dates[cle] = v + "T23:59:59" + offsetBruxelles(v)
+  const valeurs = {}
+  const champs = document.querySelectorAll("#appli input[data-cle]")
+  for (let i = 0; i < champs.length; i++) {
+    const el = champs[i]
+    const cle = el.getAttribute("data-cle")
+    const type = el.getAttribute("data-type")
+    const v = el.value
+    if (type === "date") { if (v) valeurs[cle] = v + "T23:59:59" + offsetBruxelles(v) }
+    else { valeurs[cle] = v }
   }
   msg.textContent = "Enregistrement…"
   try {
-    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: motDePasse, dates: dates }) })
+    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: motDePasse, valeurs: valeurs }) })
     const result = await r.json()
     if (result.code === "AUTH") {
       localStorage.removeItem("espoyr_admin_pwd")
@@ -103,7 +119,7 @@ async function enregistrer() {
       return
     }
     if (!result.ok) { msg.textContent = "❌ " + (result.erreur || "Erreur"); return }
-    msg.textContent = "✅ Dates enregistrées."
+    msg.textContent = "✅ Paramètres enregistrés (" + result.n + ")."
   } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
 }
 
@@ -112,13 +128,13 @@ async function verifierEtEntrer(pwd) {
   const msg = document.getElementById("msgConnexion")
   msg.textContent = "Vérification…"
   try {
-    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: pwd, dates: {} }) })
+    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: pwd, valeurs: {} }) })
     const result = await r.json()
     if (result.code === "AUTH" || !result.ok) { msg.textContent = "❌ Mot de passe incorrect."; localStorage.removeItem("espoyr_admin_pwd"); return }
     localStorage.setItem("espoyr_admin_pwd", pwd)
     document.getElementById("connexion").style.display = "none"
     document.getElementById("appli").style.display = "block"
-    chargerDates()
+    await chargerParametres()
   } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
 }
 
