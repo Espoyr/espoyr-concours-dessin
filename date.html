@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Réglage des dates - Espoyr</title>
+<style>
+body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding:0 15px; color:#222; }
+h1, h2 { color:#2d6a4f; }
+label { display:block; margin-top:16px; font-weight:bold; }
+input { padding:10px; margin-top:5px; width:100%; box-sizing:border-box; }
+button { padding:12px; margin-top:20px; width:100%; background:#2d6a4f; color:white; border:0; border-radius:6px; cursor:pointer; font-size:1em; }
+.box { border:1px solid #ccc; border-radius:8px; padding:20px; margin:20px 0; }
+.msg { margin-top:12px; }
+small { color:#666; }
+</style>
+</head>
+<body>
+<h1>📅 Réglage des dates du concours</h1>
+
+<div id="connexion" class="box">
+<h2>Accès administrateur</h2>
+<label>Mot de passe<input type="password" id="motDePasse"></label>
+<button id="btnConnexion">Entrer</button>
+<div id="msgConnexion" class="msg"></div>
+</div>
+
+<div id="appli" class="box" style="display:none;">
+<p><small>Choisis chaque date dans le calendrier (dans l'ordre du concours). L'heure est fixée automatiquement à 23:59:59, heure belge.</small></p>
+<label>Date limite de dépôt des dessins<input type="date" id="d_depot"></label>
+<label>Ouverture du vote<input type="date" id="d_ouverture"></label>
+<label>Clôture du vote<input type="date" id="d_fermeture"></label>
+<label>Annonce des résultats<input type="date" id="d_resultats"></label>
+<label>Envoi des originaux par courrier<input type="date" id="d_original"></label>
+<button id="btnEnregistrer">Enregistrer les dates</button>
+<div id="msgEnregistrer" class="msg"></div>
+</div>
+
+<script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
+const enTetes = { "Content-Type": "application/json", "apikey": supabaseAnonKey, "Authorization": "Bearer " + supabaseAnonKey }
+
+let motDePasse = localStorage.getItem("espoyr_admin_pwd") || ""
+
+const champs = {
+  date_limite_depot: "d_depot",
+  date_ouverture_vote: "d_ouverture",
+  date_fermeture_vote: "d_fermeture",
+  date_resultats: "d_resultats",
+  date_envoi_original: "d_original"
+}
+
+function partieDate(valeur) {
+  if (!valeur) return ""
+  const t = valeur.indexOf("T")
+  return t > 0 ? valeur.substring(0, t) : valeur.substring(0, 10)
+}
+
+function offsetBruxelles(dateStr) {
+  const m = dateStr.split("-")
+  const y = parseInt(m[0], 10), mo = parseInt(m[1], 10), d = parseInt(m[2], 10)
+  const dt = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0))
+  try {
+    const dtf = new Intl.DateTimeFormat("en-US", { timeZone: "Europe/Brussels", timeZoneName: "longOffset" })
+    const parts = dtf.formatToParts(dt)
+    let tz = "+01:00"
+    parts.forEach(function(p){ if (p.type === "timeZoneName") { const v = p.value.replace("GMT", ""); if (v && v.indexOf(":") > 0) tz = v } })
+    return tz
+  } catch (e) { return "+01:00" }
+}
+
+async function chargerDates() {
+  try {
+    const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", { headers: { apikey: supabaseAnonKey, Authorization: "Bearer " + supabaseAnonKey } })
+    const lignes = await r.json()
+    const P = {}
+    lignes.forEach(function(l){ P[l.cle] = l.valeur })
+    for (const cle in champs) {
+      const el = document.getElementById(champs[cle])
+      if (el) el.value = partieDate(P[cle])
+    }
+  } catch (e) { console.error(e) }
+}
+
+async function enregistrer() {
+  const msg = document.getElementById("msgEnregistrer")
+  const dates = {}
+  for (const cle in champs) {
+    const el = document.getElementById(champs[cle])
+    const v = el ? el.value : ""
+    if (v) dates[cle] = v + "T23:59:59" + offsetBruxelles(v)
+  }
+  msg.textContent = "Enregistrement…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: motDePasse, dates: dates }) })
+    const result = await r.json()
+    if (result.code === "AUTH") {
+      localStorage.removeItem("espoyr_admin_pwd")
+      document.getElementById("appli").style.display = "none"
+      document.getElementById("connexion").style.display = "block"
+      document.getElementById("msgConnexion").textContent = "❌ Mot de passe incorrect."
+      return
+    }
+    if (!result.ok) { msg.textContent = "❌ " + (result.erreur || "Erreur"); return }
+    msg.textContent = "✅ Dates enregistrées."
+  } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
+}
+
+async function verifierEtEntrer(pwd) {
+  motDePasse = pwd
+  const msg = document.getElementById("msgConnexion")
+  msg.textContent = "Vérification…"
+  try {
+    const r = await fetch(supabaseUrl + "/functions/v1/enregistrer-dates", { method: "POST", headers: enTetes, body: JSON.stringify({ admin_password: pwd, dates: {} }) })
+    const result = await r.json()
+    if (result.code === "AUTH" || !result.ok) { msg.textContent = "❌ Mot de passe incorrect."; localStorage.removeItem("espoyr_admin_pwd"); return }
+    localStorage.setItem("espoyr_admin_pwd", pwd)
+    document.getElementById("connexion").style.display = "none"
+    document.getElementById("appli").style.display = "block"
+    chargerDates()
+  } catch (err) { msg.textContent = "Erreur réseau : " + err.message }
+}
+
+document.getElementById("btnConnexion").addEventListener("click", function(){ verifierEtEntrer(document.getElementById("motDePasse").value) })
+document.getElementById("btnEnregistrer").addEventListener("click", enregistrer)
+
+if (motDePasse) verifierEtEntrer(motDePasse)
+</script>
+</body>
+</html>
