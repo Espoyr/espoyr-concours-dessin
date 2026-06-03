@@ -141,7 +141,11 @@ function demarrerBulletin(){
   if(bIndex>=bulletins.length){ finTout("✅ Merci ! Tous les votes de cette adresse sont enregistrés."); return }
   const b = bulletins[bIndex]
   if(b.type==="ext" && !b.pret){ afficherSaisiePrenom(b); return }
+  
   pageList = pagesRestantes(b.id)
+  melanger(pageList)
+
+  
   if(pageList.length===0){ bIndex++; demarrerBulletin(); return }
   pIndex=0
   afficherVotePage()
