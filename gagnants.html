@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gagnants - Concours Espoyr</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+body { font-family: Arial, sans-serif; max-width: 1100px; margin: 30px auto; padding:0 15px; color:#222; font-size:18px; }
+h1 { color:#2d6a4f; }
+input, button { padding:10px; margin-top:6px; box-sizing:border-box; font-size:1em; }
+button { background:#2d6a4f; color:#fff; border:0; border-radius:6px; cursor:pointer; }
+#btnXls { background:#1d6f42; }
+table { border-collapse:collapse; width:100%; margin-top:18px; font-size:0.9em; }
+th, td { border:1px solid #ccc; padding:6px 8px; text-align:left; }
+th { background:#eef6f1; }
+</style>
+</head>
+<body>
+<h1>🏆 Gagnants — export Excel</h1>
+<div id="zone">
+  <p>Mot de passe administrateur<br><input type="password" id="mdp" style="width:280px;"></p>
+  <button id="btnVoir">Voir les gagnants</button>
+  <div id="msg" style="margin-top:10px;"></div>
+</div>
+<div id="resultat"></div>
+
+<script>
+const supabaseUrl = "https://mqslyuelcvmrntbmjlnz.supabase.co"
+const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xc2x5dWVsY3Ztcm50Ym1qbG56Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzMxMzcsImV4cCI6MjA5NTU0OTEzN30.AdJeg4OnsBBzmIwH3NtktAbMSwa7EMzTq7JRzrk1a3M"
+const enTetes = { "Content-Type":"application/json", "apikey":supabaseAnonKey, "Authorization":"Bearer "+supabaseAnonKey }
+let gagnants = []
+
+document.getElementById("btnVoir").addEventListener("click", charger)
+
+async function charger(){
+  const mdp = document.getElementById("mdp").value
+  const msg = document.getElementById("msg")
+  msg.textContent = "Chargement…"
+  try{
+    const r = await fetch(supabaseUrl+"/functions/v1/liste-gagnants",{method:"POST",headers:enTetes,body:JSON.stringify({admin_password:mdp})})
+    const result = await r.json()
+    if(result.code==="AUTH"){ msg.textContent="❌ Mot de passe incorrect."; return }
+    if(!result.ok){ msg.textContent="❌ "+(result.erreur||"Erreur"); return }
+    gagnants = result.gagnants || []
+    msg.textContent = "✅ "+gagnants.length+" enfant(s) trouvé(s)."
+    afficher()
+  }catch(err){ msg.textContent="Erreur réseau : "+err.message }
+}
+
+function afficher(){
+  let html = "<button id='btnXls'>⬇️ Télécharger le fichier Excel</button>"
+  html += "<table><tr><th>Prénom</th><th>Nom du parent</th><th>Email</th><th>Âge</th><th>Catégorie</th><th>Total votes</th><th>Pages gagnées</th><th>Lot (#)</th><th>Détail</th></tr>"
+  gagnants.forEach(function(g){
+    html += "<tr><td>"+g.prenom+"</td><td>"+g.nom_parent+"</td><td>"+g.email+"</td><td>"+g.age+"</td><td>"+g.categorie+"</td><td>"+g.total+"</td><td>"+g.pages+"</td><td>"+g.montant+"</td><td>"+g.detail+"</td></tr>"
+  })
+  html += "</table>"
+  document.getElementById("resultat").innerHTML = html
+  document.getElementById("btnXls").addEventListener("click", telecharger)
+}
+
+function telecharger(){
+  const lignes = gagnants.map(function(g){
+    return {
+      "Prénom enfant": g.prenom, "Nom du parent": g.nom_parent, "Email": g.email,
+      "Âge": g.age, "Catégorie": g.categorie, "Total votes": g.total,
+      "Pages gagnées": g.pages, "Lot (#)": g.montant, "Détail": g.detail
+    }
+  })
+  const ws = XLSX.utils.json_to_sheet(lignes)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Gagnants")
+  XLSX.writeFile(wb, "gagnants-espoyr.xlsx")
+}
+</script>
+</body>
+</html>
