@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Concours de dessin Espoyr</title>
+  <title>Concours de dessin Espoyr #</title>
   <style>
     body{ font-family: Arial, sans-serif; background:#f4f4f4; margin:0; padding:0; color:#222; }
     header{ background:#2d6a4f; color:white; text-align:center; padding:40px 20px; }
@@ -19,14 +19,21 @@
     .dates-compte{ background:#ff9800; border-radius:10px; padding:20px; min-width:190px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; }
     #compteNombre{ font-size:2.6em; font-weight:bold; line-height:1; color:white; white-space:nowrap; }
     #compteLabel{ margin-top:10px; font-size:1em; color:#000; font-weight:bold; text-transform:uppercase; }
+    #statutCard{ border-left:6px solid #2d6a4f; }
+    #statutTexte{ font-size:1.1em; }
   </style>
 </head>
 <body>
 <header>
-  <h1>Concours de dessin Espoyr</h1>
+  <h1>Concours de dessin Espoyr #</h1>
   <p>Illustrons ensemble un livre pour enfants et adultes</p>
 </header>
 <div class="container">
+
+  <div class="card" id="statutCard">
+    <h2 id="statutTitre">Concours de dessin Espoyr #</h2>
+    <p id="statutTexte"></p>
+  </div>
 
   <div class="card">
     <h2>✏️ Le projet</h2>
@@ -61,9 +68,12 @@
 
   <div class="card">
     <h2>📬 Participer</h2>
-    <p>Les dessins peuvent être envoyés directement depuis l'application.</p>
-    <a class="btn" href="upload.html">Envoyer mon dessin</a>
+    <p id="depotInfo">Les dessins peuvent être envoyés directement depuis l'application.</p>
+    <a id="btnDepot" class="btn" href="upload.html">Envoyer mon dessin</a>
     <p style="margin-top:18px;">Déjà inscrit ? <a href="upload.html"><strong>Accéder à mon espace</strong></a></p>
+    <hr style="margin:22px 0; border:none; border-top:1px solid #eee;">
+    <p id="voteInfo">🗳️ Pour voter pour vos dessins préférés :</p>
+    <a id="btnVote" class="btn" style="background:#999; pointer-events:none; opacity:0.6;">Vote pas encore ouvert</a>
   </div>
 </div>
 <footer>Ensemble, donnons vie à une belle histoire ✨</footer>
@@ -97,6 +107,66 @@ function majDecompte(dateDepot, total) {
   elLabel.textContent = "JOURS RESTANTS"
 }
 
+function appliquerPhases(p) {
+  const maintenant = Date.now()
+  const lim = p.date_limite_depot ? new Date(p.date_limite_depot).getTime() : null
+  const ouv = p.date_ouverture_vote ? new Date(p.date_ouverture_vote).getTime() : null
+  const fer = p.date_fermeture_vote ? new Date(p.date_fermeture_vote).getTime() : null
+  const res = p.date_resultats ? new Date(p.date_resultats).getTime() : null
+  const depotOuvert = (lim === null) || (maintenant < lim)
+  const voteOuvert = (ouv !== null && fer !== null && maintenant >= ouv && maintenant < fer)
+  const voteAvant = (ouv !== null && maintenant < ouv)
+  const resDispo = (res !== null && maintenant >= res)
+
+  const btnDepot = document.getElementById("btnDepot")
+  const depotInfo = document.getElementById("depotInfo")
+  if (depotOuvert) {
+    btnDepot.style.background = "#ff9800"; btnDepot.style.pointerEvents = "auto"; btnDepot.style.opacity = "1"
+    btnDepot.setAttribute("href", "upload.html"); btnDepot.textContent = "Envoyer mon dessin"
+  } else {
+    btnDepot.style.background = "#999"; btnDepot.style.pointerEvents = "none"; btnDepot.style.opacity = "0.6"
+    btnDepot.removeAttribute("href"); btnDepot.textContent = "Dépôts clôturés"
+    depotInfo.textContent = "Les dépôts de dessins sont terminés."
+  }
+
+  const btnVote = document.getElementById("btnVote")
+  if (voteOuvert) {
+    btnVote.textContent = "Voter pour les dessins"; btnVote.setAttribute("href", "vote.html")
+    btnVote.style.background = "#ff9800"; btnVote.style.pointerEvents = "auto"; btnVote.style.opacity = "1"
+  } else if (voteAvant) {
+    btnVote.textContent = "Vote pas encore ouvert"; btnVote.removeAttribute("href")
+    btnVote.style.background = "#999"; btnVote.style.pointerEvents = "none"; btnVote.style.opacity = "0.6"
+  } else {
+    btnVote.textContent = "Vote terminé"; btnVote.removeAttribute("href")
+    btnVote.style.background = "#999"; btnVote.style.pointerEvents = "none"; btnVote.style.opacity = "0.6"
+  }
+
+  const titre = document.getElementById("statutTitre")
+  const texte = document.getElementById("statutTexte")
+  const carte = document.getElementById("statutCard")
+  if (resDispo) {
+    titre.textContent = "🏆 Résultats disponibles"
+    texte.innerHTML = "Le concours est terminé. Merci à tous !<br><a class='btn' href='resultats.html'>Voir les résultats</a>"
+    carte.style.borderLeftColor = "#ff9800"
+  } else if (voteOuvert) {
+    titre.textContent = "🗳️ Le vote est ouvert !"
+    texte.innerHTML = "Les dépôts sont clôturés. Découvrez les dessins et votez pour vos préférés (un favori par page).<br><a class='btn' href='vote.html'>Voter maintenant</a>"
+    carte.style.borderLeftColor = "#ff9800"
+  } else if (depotOuvert) {
+    titre.textContent = "✏️ Les dépôts sont ouverts"
+    texte.textContent = "Envoie ton dessin avant la date limite. Le vote ouvrira ensuite."
+    carte.style.borderLeftColor = "#2d6a4f"
+  } else if (voteAvant) {
+    titre.textContent = "⏳ Dépôts clôturés"
+    texte.textContent = "Les dépôts sont terminés. Le vote ouvrira bientôt — reviens à la date d'ouverture du vote."
+    carte.style.borderLeftColor = "#888"
+  } else {
+    titre.textContent = "Vote terminé"
+    texte.textContent = "Merci à tous ! Les résultats seront bientôt publiés."
+    carte.style.borderLeftColor = "#888"
+  }
+}
+
 async function chargerParametres() {
   try {
     const r = await fetch(supabaseUrl + "/rest/v1/parametres?select=cle,valeur", {
@@ -118,6 +188,7 @@ async function chargerParametres() {
     if (p.nombre_max_dessins_par_enfant) document.getElementById("maxDessins").textContent = p.nombre_max_dessins_par_enfant
 
     majDecompte(p.date_limite_depot, dureeDepotJours)
+    appliquerPhases(p)
   } catch (e) { console.error("Parametres :", e) }
 }
 
