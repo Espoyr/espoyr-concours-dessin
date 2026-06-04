@@ -9,19 +9,33 @@
 body { font-family: Arial, sans-serif; max-width: 1100px; margin: 30px auto; padding:0 15px; color:#222; font-size:18px; }
 h1 { color:#2d6a4f; }
 input, button { padding:10px; margin-top:6px; box-sizing:border-box; font-size:1em; }
-button { background:#2d6a4f; color:#fff; border:0; border-radius:6px; cursor:pointer; }
-#btnXls { background:#1d6f42; }
+button { background:#2d6a4f; color:#fff; border:0; border-radius:6px; cursor:pointer; margin-right:8px; }
 table { border-collapse:collapse; width:100%; margin-top:18px; font-size:0.9em; }
 th, td { border:1px solid #ccc; padding:6px 8px; text-align:left; }
 th { background:#eef6f1; }
+.cat { color:#2d6a4f; border-bottom:3px solid #2d6a4f; padding-bottom:6px; margin-top:34px; font-size:1.5em; }
+h3 { color:#444; margin-top:22px; }
+.gagnant { border:1px solid #ddd; border-radius:8px; padding:12px 14px; margin:14px 0; background:#fafafa; }
+.gagnant .ligne { font-size:1.15em; margin-bottom:8px; }
+.prix { background:#ff9800; color:#fff; padding:3px 10px; border-radius:6px; font-weight:bold; }
+.nom { font-weight:bold; }
+.votes { color:#666; }
+.galerie { display:flex; flex-wrap:wrap; gap:12px; }
+.dessin { width:140px; text-align:center; }
+.dessin img { width:100%; height:130px; object-fit:cover; border-radius:5px; border:1px solid #ccc; }
+.dessin .sous { font-size:0.8em; color:#666; margin-top:3px; }
 </style>
 </head>
 <body>
-<h1>🏆 Gagnants — export Excel</h1>
+<h1>🏆 Gagnants — Concours Espoyr</h1>
 <div id="zone">
   <p>Mot de passe administrateur<br><input type="password" id="mdp" style="width:280px;"></p>
-  <button id="btnVoir">Voir les gagnants</button>
+  <button id="btnVoir">Charger les gagnants</button>
   <div id="msg" style="margin-top:10px;"></div>
+</div>
+<div id="modes" style="display:none; margin-top:16px;">
+  <button id="btnTable">📊 Tableau Excel</button>
+  <button id="btnProcla">🎤 Mode proclamation</button>
 </div>
 <div id="resultat"></div>
 
@@ -32,6 +46,8 @@ const enTetes = { "Content-Type":"application/json", "apikey":supabaseAnonKey, "
 let gagnants = []
 
 document.getElementById("btnVoir").addEventListener("click", charger)
+document.getElementById("btnTable").addEventListener("click", afficherTable)
+document.getElementById("btnProcla").addEventListener("click", proclamation)
 
 async function charger(){
   const mdp = document.getElementById("mdp").value
@@ -43,12 +59,13 @@ async function charger(){
     if(result.code==="AUTH"){ msg.textContent="❌ Mot de passe incorrect."; return }
     if(!result.ok){ msg.textContent="❌ "+(result.erreur||"Erreur"); return }
     gagnants = result.gagnants || []
-    msg.textContent = "✅ "+gagnants.length+" enfant(s) trouvé(s)."
-    afficher()
+    msg.textContent = "✅ "+gagnants.length+" enfant(s). Choisis un affichage :"
+    document.getElementById("modes").style.display = "block"
+    afficherTable()
   }catch(err){ msg.textContent="Erreur réseau : "+err.message }
 }
 
-function afficher(){
+function afficherTable(){
   let html = "<button id='btnXls'>⬇️ Télécharger le fichier Excel</button>"
   html += "<table><tr><th>Prénom</th><th>Nom du parent</th><th>Email</th><th>Âge</th><th>Catégorie</th><th>Total votes</th><th>Pages gagnées</th><th>Lot (#)</th><th>Détail</th></tr>"
   gagnants.forEach(function(g){
@@ -61,16 +78,37 @@ function afficher(){
 
 function telecharger(){
   const lignes = gagnants.map(function(g){
-    return {
-      "Prénom enfant": g.prenom, "Nom du parent": g.nom_parent, "Email": g.email,
-      "Âge": g.age, "Catégorie": g.categorie, "Total votes": g.total,
-      "Pages gagnées": g.pages, "Lot (#)": g.montant, "Détail": g.detail
-    }
+    return { "Prénom enfant": g.prenom, "Nom du parent": g.nom_parent, "Email": g.email, "Âge": g.age, "Catégorie": g.categorie, "Total votes": g.total, "Pages gagnées": g.pages, "Lot (#)": g.montant, "Détail": g.detail }
   })
   const ws = XLSX.utils.json_to_sheet(lignes)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, "Gagnants")
   XLSX.writeFile(wb, "gagnants-espoyr.xlsx")
+}
+
+function carte(g, titrePrix){
+  let h = "<div class='gagnant'><div class='ligne'><span class='prix'>"+titrePrix+" — "+g.montant+"#</span> <span class='nom'>"+g.prenom+"</span> <span class='votes'>("+g.total+" vote"+(g.total>1?"s":"")+")</span></div><div class='galerie'>"
+  g.dessins.forEach(function(d){ h += "<div class='dessin'><img src='"+d.image_url+"' alt=''><div class='sous'>page "+d.page+" — "+d.votes+" v.</div></div>" })
+  h += "</div></div>"
+  return h
+}
+
+function proclamation(){
+  let html = ""
+  const cats = [["jeunes","Jeunes"],["grands","Grands"]]
+  cats.forEach(function(c){
+    const cat=c[0], label=c[1]
+    const dansCat = gagnants.filter(function(g){ return g.categorie===cat })
+    if(dansCat.length===0) return
+    html += "<h2 class='cat'>Catégorie "+label+"</h2>"
+    const pod = dansCat.filter(function(g){return g.tier==="podium"}).sort(function(a,b){return a.rang-b.rang})
+    if(pod.length){ html += "<h3>🥇 Podium</h3>"; pod.forEach(function(g){ html += carte(g, g.rang+(g.rang===1?"er":"e")+" prix") }) }
+    const pg = dansCat.filter(function(g){return g.tier==="page"}).sort(function(a,b){return b.total-a.total})
+    if(pg.length){ html += "<h3>🏅 Gagnants de page — lot intermédiaire</h3>"; pg.forEach(function(g){ html += carte(g, "Gagnant page "+g.pages) }) }
+    const co = dansCat.filter(function(g){return g.tier==="consolation"}).sort(function(a,b){return b.total-a.total})
+    if(co.length){ html += "<h3>🎁 Lots de consolation</h3>"; co.forEach(function(g){ html += carte(g, "Consolation") }) }
+  })
+  document.getElementById("resultat").innerHTML = html || "<p>Aucun gagnant.</p>"
 }
 </script>
 </body>
