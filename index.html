@@ -131,8 +131,12 @@ function appliquerPhases(p) {
 
   const btnVote = document.getElementById("btnVote")
   if (voteOuvert) {
-    btnVote.textContent = "Voter pour les dessins"; btnVote.setAttribute("href", "vote.html")
+    btnVote.textContent = "🗳️ LE VOTE EST OUVERT — votez !"; btnVote.setAttribute("href", "vote.html")
     btnVote.style.background = "#ff9800"; btnVote.style.pointerEvents = "auto"; btnVote.style.opacity = "1"
+    btnVote.style.display = "block"; btnVote.style.fontSize = "1.5em"; btnVote.style.padding = "28px"; btnVote.style.textAlign = "center"
+
+
+    
   } else if (voteAvant) {
     btnVote.textContent = "Vote pas encore ouvert"; btnVote.removeAttribute("href")
     btnVote.style.background = "#999"; btnVote.style.pointerEvents = "none"; btnVote.style.opacity = "0.6"
