@@ -48,6 +48,7 @@ let pIndex = 0
 let selection = null
 
 function melanger(arr){ for(let i=arr.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); const t=arr[i]; arr[i]=arr[j]; arr[j]=t } return arr }
+  function deconnexion(){ localStorage.removeItem("espoyr_email_parent"); localStorage.removeItem("espoyr_code"); localStorage.removeItem("espoyr_age"); email=""; code=""; age=NaN; afficherConnexion("") }
 
 function fmt(d){ if(!d) return ""; return new Date(d).toLocaleDateString("fr-BE",{timeZone:"Europe/Brussels",day:"numeric",month:"long",year:"numeric"}) }
 
